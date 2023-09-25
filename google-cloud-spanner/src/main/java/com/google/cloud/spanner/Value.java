@@ -113,6 +113,107 @@ public abstract class Value implements Serializable {
   }
 
   /**
+   * This helper function encapsulates other builders to allow type-agnostic code in the consumer
+   * classes. The following primitive types are supported: BOOL, INT64, FLOAT64, NUMERIC,
+   * PG_NUMERIC, STRING, JSON, PG_JSONB, BYTES, TIMESTAMP and DATE.
+   * TODO(gunjj@) - This is a generic function, so should we do explicit type checking for safety?
+   *
+   * @param type {@link Code} of the value
+   * @param value Primitive value of one of the supported types
+   * @return Concrete value instance of the specified type
+   */
+  public static Value primitiveOfType(Code type, @Nullable Object value) {
+    if (Type.isPrimitiveTypeCodeSupported(type)) {
+      switch (type) {
+        case INT64:
+          return int64((Long) value);
+        case FLOAT64:
+          return float64((Double) value);
+        case BOOL:
+          return bool((Boolean) value);
+        case BYTES:
+          //Source encoding can be in multiple formats, hence need to check for value type
+          if (value instanceof String || value == null) {
+            return bytesFromBase64((String) value);
+          } else if (value instanceof ByteArray) {
+            return bytes((ByteArray) value);
+          } else {
+            throw new IllegalArgumentException("unsupported row type for BYTES");
+          }
+        case NUMERIC:
+          return numeric((BigDecimal) value);
+        case PG_NUMERIC:
+          return pgNumeric((String) value);
+        case STRING:
+          return string((String) value);
+        case JSON:
+          return json((String) value);
+        case PG_JSONB:
+          return pgJsonb((String) value);
+        case TIMESTAMP:
+          return timestamp((Timestamp) value);
+        case DATE:
+          return date((Date) value);
+        default:
+          throw new IllegalArgumentException("unsupported row type: " + type);
+      }
+    } else {
+      throw new IllegalArgumentException("unsupported row type: " + type);
+    }
+  }
+
+  /**
+   * This helper function encapsulates other builders to allow type-agnostic code in the consumer
+   * classes. Arrays of the following primitive types are supported: BOOL, INT64, FLOAT64, NUMERIC,
+   * PG_NUMERIC, STRING, JSON, PG_JSONB, BYTES, TIMESTAMP and DATE.
+   *
+   * @param values Iterable values of one of the supported types
+   * @param type {@link Type.Code} of the value
+   * @return Concrete value instance of the specified array type
+   */
+  public static Value primitiveArrayOfType(@Nullable Iterable<?> values, Code type) {
+    if (Type.isPrimitiveTypeCodeSupported(type)) {
+      switch (type) {
+        case INT64:
+          return int64ArrayFactory.create((Iterable<Long>) values);
+        case FLOAT64:
+          return float64ArrayFactory.create((Iterable<Double>) values);
+        case BOOL:
+          return boolArrayFactory.create((Iterable<Boolean>) values);
+        case BYTES:
+          //Source encoding can be in multiple formats, hence need to check for value type
+          // Messy checks on entries due to Java's type-erasure if the iterator is non-empty
+          if (values == null || !values.iterator().hasNext() || values.iterator().next().getClass()
+              .isInstance(ByteArray.class)) {
+            return bytesArray((Iterable<ByteArray>) values);
+          } else if (values.iterator().next().getClass().isInstance(String.class)) {
+            return bytesArrayFromBase64((Iterable<String>) values);
+          } else {
+            throw new IllegalArgumentException("unsupported row type for BYTES array");
+          }
+        case NUMERIC:
+          return numericArray((Iterable<BigDecimal>) values);
+        case PG_NUMERIC:
+          return pgNumericArray((Iterable<String>) values);
+        case STRING:
+          return stringArray((Iterable<String>) values);
+        case JSON:
+          return jsonArray((Iterable<String>) values);
+        case PG_JSONB:
+          return pgJsonbArray((Iterable<String>) values);
+        case TIMESTAMP:
+          return timestampArray((Iterable<Timestamp>) values);
+        case DATE:
+          return dateArray((Iterable<Date>) values);
+        default:
+          throw new IllegalArgumentException("unsupported row type: " + type);
+      }
+    } else {
+      throw new IllegalArgumentException("unsupported row type: " + type);
+    }
+  }
+
+  /**
    * Returns a {@code BOOL} value.
    *
    * @param v the value, which may be null
@@ -1044,6 +1145,12 @@ public abstract class Value implements Serializable {
     final com.google.protobuf.Value toProto() {
       return isNull() ? NULL_PROTO : valueToProto();
     }
+
+    // TODO(gunjj) Each type maps to a protobuf value. Can the individual builders be generalized, since all of these return a protobuf Value?
+    //  Challenge: This is mostly a two-step process in the implementations for primitive types - (i) Transform1(originalValue), (ii) pass this to the output-type-specific protobuf-builder setter
+    //  In some cases there is no (i) e.g. BoolImpl (boolean type), Float64Impl (double type). E.g. for BoolImpl: com.google.protobuf.Value.newBuilder().setBoolValue(value).build()
+    //  While in other cases - E.g. for Int64: com.google.protobuf.Value.newBuilder().setStringValue(Long.toString(value)).build()
+    //  Also, (i) might be a static method such as Long.toString(longVal) or an instance method such as byts.getBase64String
 
     /**
      * Returns a proto representation of this value. {@code this} is guaranteed to represent a

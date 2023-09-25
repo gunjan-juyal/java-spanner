@@ -19,6 +19,9 @@ package com.google.cloud.spanner;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.spanner.v1.TypeAnnotationCode.TYPE_ANNOTATION_CODE_UNSPECIFIED;
 
+import com.google.cloud.ByteArray;
+import com.google.cloud.Date;
+import com.google.cloud.Timestamp;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -26,12 +29,16 @@ import com.google.common.collect.ImmutableMap;
 import com.google.spanner.v1.TypeAnnotationCode;
 import com.google.spanner.v1.TypeCode;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -46,6 +53,7 @@ import javax.annotation.concurrent.Immutable;
  */
 @Immutable
 public final class Type implements Serializable {
+
   private static final Type TYPE_BOOL = new Type(Code.BOOL, null, null);
   private static final Type TYPE_INT64 = new Type(Code.INT64, null, null);
   private static final Type TYPE_FLOAT64 = new Type(Code.FLOAT64, null, null);
@@ -68,6 +76,70 @@ public final class Type implements Serializable {
   private static final Type TYPE_ARRAY_BYTES = new Type(Code.ARRAY, TYPE_BYTES, null);
   private static final Type TYPE_ARRAY_TIMESTAMP = new Type(Code.ARRAY, TYPE_TIMESTAMP, null);
   private static final Type TYPE_ARRAY_DATE = new Type(Code.ARRAY, TYPE_DATE, null);
+
+  private static final Map<Enum<Code>, Type> CODE_TO_PRIMITIVE_TYPE = ImmutableMap.<Enum<Code>, Type>builder()
+      .put(Code.BOOL, TYPE_BOOL)
+      .put(Code.INT64, TYPE_INT64)
+      .put(Code.FLOAT64, TYPE_FLOAT64)
+      .put(Code.NUMERIC, TYPE_NUMERIC)
+      .put(Code.PG_NUMERIC, TYPE_PG_NUMERIC)
+      .put(Code.STRING, TYPE_STRING)
+      .put(Code.JSON, TYPE_JSON)
+      .put(Code.PG_JSONB, TYPE_PG_JSONB)
+      .put(Code.BYTES, TYPE_BYTES)
+      .put(Code.TIMESTAMP, TYPE_TIMESTAMP)
+      .put(Code.DATE, TYPE_DATE)
+      .build();
+
+  private static final Map<Enum<Code>, Type> CODE_TO_ARRAY_TYPE = ImmutableMap.<Enum<Code>, Type>builder()
+      .put(Code.BOOL, TYPE_ARRAY_BOOL)
+      .put(Code.INT64, TYPE_ARRAY_INT64)
+      .put(Code.FLOAT64, TYPE_ARRAY_FLOAT64)
+      .put(Code.NUMERIC, TYPE_ARRAY_NUMERIC)
+      .put(Code.PG_NUMERIC, TYPE_ARRAY_PG_NUMERIC)
+      .put(Code.STRING, TYPE_ARRAY_STRING)
+      .put(Code.JSON, TYPE_ARRAY_JSON)
+      .put(Code.PG_JSONB, TYPE_ARRAY_PG_JSONB)
+      .put(Code.BYTES, TYPE_ARRAY_BYTES)
+      .put(Code.TIMESTAMP, TYPE_ARRAY_TIMESTAMP)
+      .put(Code.DATE, TYPE_ARRAY_DATE)
+      .build();
+
+  private static final Set<Class> supportedPrimitiveTypeClasses = new HashSet<>(
+      Arrays.<Class>asList(Boolean.class, Integer.class,
+          Long.class,
+          Float.class, Double.class, BigDecimal.class, String.class, ByteArray.class,
+          Timestamp.class, Date.class));
+
+  /**
+   * Returns true if the class of provided {@code value} object is supported by the respective
+   * methods (usually containing `PrimitiveTypeClass` in their names). The supported primitive
+   * classes are: Boolean, Integer, Long, Float, Double, BigDecimal, String, ByteArray, Timestamp
+   * and Date.
+   *
+   * @param value Object to check for support
+   * @return True if the class supported
+   */
+  static boolean isPrimitiveTypeClassSupported(Object value) {
+    return supportedPrimitiveTypeClasses.contains(value.getClass());
+  }
+
+  private static final Set<Code> supportedPrimitiveTypeCodes = new HashSet<>(
+      Arrays.<Code>asList(Code.BOOL, Code.INT64, Code.FLOAT64, Code.NUMERIC, Code.PG_NUMERIC,
+          Code.STRING, Code.JSON, Code.PG_JSONB, Code.BYTES, Code.TIMESTAMP, Code.DATE));
+
+  /**
+   * Returns true if the provided {@code code} is a primitive {@link Type.Code} supported by the
+   * respective methods (usually containing `PrimitiveType` in their names). The supported primitive
+   * types are: BOOL, INT64, FLOAT64, NUMERIC, PG_NUMERIC, STRING, JSON, PG_JSONB, BYTES, TIMESTAMP
+   * and DATE.
+   *
+   * @param code Code to check for support
+   * @return True if supported
+   */
+  public static boolean isPrimitiveTypeCodeSupported(Code code) {
+    return supportedPrimitiveTypeCodes.contains(code);
+  }
 
   private static final int AMBIGUOUS_FIELD = -1;
   private static final long serialVersionUID = -3076152125004114582L;
@@ -483,30 +555,12 @@ public final class Type implements Serializable {
   }
 
   static Type fromProto(com.google.spanner.v1.Type proto) {
-    Code type = Code.fromProto(proto.getCode(), proto.getTypeAnnotation());
-    switch (type) {
-      case BOOL:
-        return bool();
-      case INT64:
-        return int64();
-      case FLOAT64:
-        return float64();
-      case NUMERIC:
-        return numeric();
-      case PG_NUMERIC:
-        return pgNumeric();
-      case STRING:
-        return string();
-      case JSON:
-        return json();
-      case PG_JSONB:
-        return pgJsonb();
-      case BYTES:
-        return bytes();
-      case TIMESTAMP:
-        return timestamp();
-      case DATE:
-        return date();
+    Code typeCode = Code.fromProto(proto.getCode(), proto.getTypeAnnotation());
+    if (isPrimitiveTypeCodeSupported(typeCode)) {
+      System.out.format("Type from map: %s\n", CODE_TO_PRIMITIVE_TYPE.get(typeCode));
+      return CODE_TO_PRIMITIVE_TYPE.get(typeCode);
+    }
+    switch (typeCode) {
       case ARRAY:
         checkArgument(
             proto.hasArrayElementType(),

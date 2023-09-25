@@ -19,6 +19,7 @@ package com.google.cloud.spanner;
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.Type.Code;
 import java.math.BigDecimal;
 import javax.annotation.Nullable;
 
@@ -55,6 +56,18 @@ public abstract class ValueBinder<R> {
   /** Binds a {@link Value} */
   public R to(Value value) {
     return handle(value);
+  }
+
+  /**
+   * Helper method that binds {@code value} to a generic {@link Value} of type {@link Code}. The
+   * following primitive types are supported: BOOL, INT64, FLOAT64, NUMERIC, PG_NUMERIC, STRING,
+   * JSON, PG_JSONB, BYTES, TIMESTAMP and DATE.
+   * {@code type} must be first parameter since {@code primitiveOfType} method in {@link Value} is
+   * validated against a paired {@code to} method in {@link ValueBinder}, and the inverse-order of
+   * parameters conflicts with other binary methods when a null value is passed as {@code value}
+   */
+  public R to(Code type, @Nullable Object value) {
+    return handle(Value.primitiveOfType(type, value));
   }
 
   /** Binds to {@code Value.bool(value)} */
@@ -127,6 +140,15 @@ public abstract class ValueBinder<R> {
    */
   public R to(Type type, @Nullable Struct value) {
     return handle(Value.struct(type, value));
+  }
+
+  /**
+   * Helper method that binds {@code value} to a generic {@link Value} of type {@link Code}. Arrays
+   * of the following primitive types are supported: BOOL, INT64, FLOAT64, NUMERIC, PG_NUMERIC,
+   * STRING, JSON, PG_JSONB, BYTES, TIMESTAMP and DATE.
+   */
+  public R toPrimitiveArrayOfType(@Nullable Iterable<?> values, Code type) {
+    return handle(Value.primitiveArrayOfType(values, type));
   }
 
   /** Binds to {@code Value.boolArray(values)} */

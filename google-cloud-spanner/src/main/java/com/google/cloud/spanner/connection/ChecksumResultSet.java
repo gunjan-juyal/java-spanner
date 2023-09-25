@@ -25,7 +25,9 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.cloud.spanner.Struct;
+import com.google.cloud.spanner.Type;
 import com.google.cloud.spanner.Type.Code;
+import com.google.cloud.spanner.TypeHelper;
 import com.google.cloud.spanner.connection.AbstractStatementParser.ParsedStatement;
 import com.google.cloud.spanner.connection.ReadWriteTransaction.RetriableStatement;
 import com.google.common.annotations.VisibleForTesting;
@@ -36,7 +38,7 @@ import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import com.google.common.hash.PrimitiveSink;
-import java.math.BigDecimal;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 
@@ -217,127 +219,44 @@ class ChecksumResultSet extends ReplaceableForwardingResultSet implements Retria
           funnelValue(Code.STRING, null, into);
         } else {
           Code type = row.getColumnType(i).getCode();
-          switch (type) {
-            case ARRAY:
-              funnelArray(row.getColumnType(i).getArrayElementType().getCode(), row, i, into);
-              break;
-            case BOOL:
-              funnelValue(type, row.getBoolean(i), into);
-              break;
-            case BYTES:
-              funnelValue(type, row.getBytes(i), into);
-              break;
-            case DATE:
-              funnelValue(type, row.getDate(i), into);
-              break;
-            case FLOAT64:
-              funnelValue(type, row.getDouble(i), into);
-              break;
-            case NUMERIC:
-              funnelValue(type, row.getBigDecimal(i), into);
-              break;
-            case PG_NUMERIC:
-              funnelValue(type, row.getString(i), into);
-              break;
-            case INT64:
-              funnelValue(type, row.getLong(i), into);
-              break;
-            case STRING:
-              funnelValue(type, row.getString(i), into);
-              break;
-            case JSON:
-              funnelValue(type, row.getJson(i), into);
-              break;
-            case PG_JSONB:
-              funnelValue(type, row.getPgJsonb(i), into);
-              break;
-            case TIMESTAMP:
-              funnelValue(type, row.getTimestamp(i), into);
-              break;
 
-            case STRUCT:
-            default:
-              throw new IllegalArgumentException("unsupported row type");
+          if (Type.isPrimitiveTypeCodeSupported(type) && type != Code.NUMERIC) {
+            funnelValue(type, TypeHelper.extractPrimitiveType(row.getValue(i), type), into);
+          } else {
+            switch (type) {
+              // Special handling for NUMERIC - since BigDecimal has larger precision than NUMERIC and there is specific handling in these functions
+              case NUMERIC:
+                funnelValue(type, row.getBigDecimal(i), into);
+                break;
+              case ARRAY:
+                funnelArray(row.getColumnType(i).getArrayElementType().getCode(), row, i, into);
+                break;
+              case STRUCT:
+              default:
+                throw new IllegalArgumentException("unsupported row type");
+            }
           }
         }
       }
     }
 
-    private void funnelArray(
-        Code arrayElementType, Struct row, int columnIndex, PrimitiveSink into) {
+    private void funnelArray(Code arrayElementType, Struct row, int columnIndex,
+        PrimitiveSink into) {
       funnelValue(Code.STRING, "BeginArray", into);
-      switch (arrayElementType) {
-        case BOOL:
-          into.putInt(row.getBooleanList(columnIndex).size());
-          for (Boolean value : row.getBooleanList(columnIndex)) {
-            funnelValue(Code.BOOL, value, into);
-          }
-          break;
-        case BYTES:
-          into.putInt(row.getBytesList(columnIndex).size());
-          for (ByteArray value : row.getBytesList(columnIndex)) {
-            funnelValue(Code.BYTES, value, into);
-          }
-          break;
-        case DATE:
-          into.putInt(row.getDateList(columnIndex).size());
-          for (Date value : row.getDateList(columnIndex)) {
-            funnelValue(Code.DATE, value, into);
-          }
-          break;
-        case FLOAT64:
-          into.putInt(row.getDoubleList(columnIndex).size());
-          for (Double value : row.getDoubleList(columnIndex)) {
-            funnelValue(Code.FLOAT64, value, into);
-          }
-          break;
-        case NUMERIC:
-          into.putInt(row.getBigDecimalList(columnIndex).size());
-          for (BigDecimal value : row.getBigDecimalList(columnIndex)) {
-            funnelValue(Code.NUMERIC, value, into);
-          }
-          break;
-        case PG_NUMERIC:
-          into.putInt(row.getStringList(columnIndex).size());
-          for (String value : row.getStringList(columnIndex)) {
-            funnelValue(Code.STRING, value, into);
-          }
-          break;
-        case INT64:
-          into.putInt(row.getLongList(columnIndex).size());
-          for (Long value : row.getLongList(columnIndex)) {
-            funnelValue(Code.INT64, value, into);
-          }
-          break;
-        case STRING:
-          into.putInt(row.getStringList(columnIndex).size());
-          for (String value : row.getStringList(columnIndex)) {
-            funnelValue(Code.STRING, value, into);
-          }
-          break;
-        case JSON:
-          into.putInt(row.getJsonList(columnIndex).size());
-          for (String value : row.getJsonList(columnIndex)) {
-            funnelValue(Code.JSON, value, into);
-          }
-          break;
-        case PG_JSONB:
-          into.putInt(row.getPgJsonbList(columnIndex).size());
-          for (String value : row.getPgJsonbList(columnIndex)) {
-            funnelValue(Code.PG_JSONB, value, into);
-          }
-          break;
-        case TIMESTAMP:
-          into.putInt(row.getTimestampList(columnIndex).size());
-          for (Timestamp value : row.getTimestampList(columnIndex)) {
-            funnelValue(Code.TIMESTAMP, value, into);
-          }
-          break;
 
-        case ARRAY:
-        case STRUCT:
-        default:
-          throw new IllegalArgumentException("unsupported array element type");
+      if (Type.isPrimitiveTypeCodeSupported(arrayElementType)) {
+        List<?> values = TypeHelper.extractArrayOfPrimitiveType(row, columnIndex, arrayElementType);
+        into.putInt(values.size());
+        // Special case - PG_NUMERIC is funneled as String
+        Code funnelCode = arrayElementType == Code.PG_NUMERIC ? Code.STRING : arrayElementType;
+        values.stream().forEach(value -> funnelValue(funnelCode, value, into));
+      } else {
+        switch (arrayElementType) {
+          case ARRAY:
+          case STRUCT:
+          default:
+            throw new IllegalArgumentException("unsupported array element type");
+        }
       }
       funnelValue(Code.STRING, "EndArray", into);
     }
@@ -354,6 +273,10 @@ class ChecksumResultSet extends ReplaceableForwardingResultSet implements Retria
       } else {
         switch (type) {
           case BOOL:
+            // TODO(gunjj@) into.putV is only used in this block, so not worth generalizing.
+            //  Is this only relevant for ChecksumResultSet? Verify, and if yes, leave this as is.
+            //  Challenge: This is only used once, and the logic is very specific to PrimitiveSink
+            //  vs other usages (e.g. proto-to-value or value-to-proto), hence not very reusable.
             into.putBoolean((Boolean) value);
             break;
           case BYTES:
