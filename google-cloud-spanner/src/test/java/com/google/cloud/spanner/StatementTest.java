@@ -22,6 +22,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 
 import com.google.cloud.ByteArray;
+import com.google.cloud.spanner.Type.Code;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.testing.EqualsTester;
 import org.junit.Test;
@@ -67,6 +68,53 @@ public class StatementTest {
     reserializeAndAssert(stmt);
   }
 
+  /**
+   * Tests serialization for Bool, Float64 and JSON
+   */
+  @Test
+  public void serializationUsingGenericMethods() {
+    Statement stmt =
+        Statement.newBuilder("SELECT * FROM table WHERE ")
+            .append("bool_field = @bool_field ")
+            .bind("bool_field")
+            .to(Code.BOOL, Boolean.TRUE)
+            .append("long_field = @long_field ")
+            .bind("long_field")
+            .to(Code.INT64, Long.valueOf(1L))
+            .append("another_long_field = @another_long_field ")
+            .bind("another_long_field")
+            .to(Code.INT64, 1L)
+            .append("float_field = @float_field ")
+            .bind("float_field")
+            .to(Code.FLOAT64, Double.valueOf(40.1F))
+            .append("another_float_field = @another_float_field ")
+            .bind("another_float_field")
+            .to(Code.FLOAT64, 40.1D)
+            .append("json_field = @json_field ")
+            .bind("json_field")
+            .to(Code.JSON, "{\"color\":\"red\",\"value\":\"#f00\"}")
+            .bind("untyped_null_field")
+            .to((Value) null)
+            .build();
+    reserializeAndAssert(stmt);
+
+    // Negative testing of invalid call of generic method
+    // TODO(gunjj@): Get this reviewed - is this a risky API, especially in Java's strongly-typed world?
+    assertThrows(ClassCastException.class,
+        () -> Statement.newBuilder("SELECT * FROM table WHERE ")
+            .append("float_field = @float_field ")
+            .bind("float_field")
+            .to(Code.FLOAT64, Float.valueOf(40.1F))
+            .build());
+
+    assertThrows(ClassCastException.class,
+        () -> Statement.newBuilder("SELECT * FROM table WHERE ")
+            .append("float_field = @float_field ")
+            .bind("float_field")
+            .to(Code.FLOAT64, 40.1F)
+            .build());
+  }
+
   @Test
   public void append() {
     Statement stmt =
@@ -88,6 +136,30 @@ public class StatementTest {
     assertThat(stmt.toString()).startsWith(expectedSql);
     assertThat(stmt.toString()).contains("id: 1234");
     assertThat(stmt.toString()).contains("status: ACTIVE");
+  }
+
+  @Test
+  public void appendUsingGenericMethods() {
+    Statement stmt =
+        Statement.newBuilder("SELECT Name FROM Users")
+            .append(" WHERE Id = @double_id")
+            .bind("double_id")
+            .to(Code.FLOAT64, Double.valueOf(1.1D))
+            .append(" AND Status = @bool_status")
+            .bind("bool_status")
+            .to(Code.BOOL, Boolean.TRUE)
+            .build();
+    String expectedSql = "SELECT Name FROM Users WHERE Id = @double_id AND Status = @bool_status";
+    assertThat(stmt.getSql()).isEqualTo(expectedSql);
+    assertThat(stmt.hasBinding("double_id")).isTrue();
+    assertThat(stmt.hasBinding("bool_status")).isTrue();
+    assertThat(stmt.getParameters())
+        .containsExactlyEntriesIn(
+            ImmutableMap.of("double_id", Value.primitiveOfType(Code.FLOAT64, 1.1D),
+                "bool_status", Value.primitiveOfType(Code.BOOL, true)));
+    assertThat(stmt.toString()).startsWith(expectedSql);
+    assertThat(stmt.toString()).contains("double_id: 1.1");
+    assertThat(stmt.toString()).contains("bool_status: true");
   }
 
   @Test

@@ -116,7 +116,8 @@ public abstract class Value implements Serializable {
    * This helper function encapsulates other builders to allow type-agnostic code in the consumer
    * classes. The following primitive types are supported: BOOL, INT64, FLOAT64, NUMERIC,
    * PG_NUMERIC, STRING, JSON, PG_JSONB, BYTES, TIMESTAMP and DATE.
-   * TODO(gunjj@) - This is a generic function, so should we do explicit type checking for safety?
+   * TODO(gunjj@) - Type safety concerns here? An invalid Code-value pair will throw ClassCastException, e.g. String value being passed for NUMERIC or Date for TIMESTAMP
+   *  Even thought for additional safety we are auto-upgrading values from coercible types (int->long, float->double)
    *
    * @param type {@link Code} of the value
    * @param value Primitive value of one of the supported types
@@ -126,9 +127,11 @@ public abstract class Value implements Serializable {
     if (Type.isPrimitiveTypeCodeSupported(type)) {
       switch (type) {
         case INT64:
-          return int64((Long) value);
+          return int64(
+              value instanceof Integer ? new Long(((Integer) value).intValue()) : (Long) value);
         case FLOAT64:
-          return float64((Double) value);
+          return float64(
+              value instanceof Float ? new Double(((Float) value).floatValue()) : (Double) value);
         case BOOL:
           return bool((Boolean) value);
         case BYTES:

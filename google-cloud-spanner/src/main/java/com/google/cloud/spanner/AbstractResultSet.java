@@ -710,6 +710,7 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
       return (com.google.protobuf.Value) rowData.get(columnIndex);
     }
 
+    // TODO(gunjj@) Consider for refactoring
     @Override
     protected Value getValueInternal(int columnIndex) {
       final List<Type.StructField> structFields = getType().getStructFields();

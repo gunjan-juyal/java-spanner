@@ -77,7 +77,7 @@ public final class Type implements Serializable {
   private static final Type TYPE_ARRAY_TIMESTAMP = new Type(Code.ARRAY, TYPE_TIMESTAMP, null);
   private static final Type TYPE_ARRAY_DATE = new Type(Code.ARRAY, TYPE_DATE, null);
 
-  private static final Map<Enum<Code>, Type> CODE_TO_PRIMITIVE_TYPE = ImmutableMap.<Enum<Code>, Type>builder()
+  static final Map<Enum<Code>, Type> CODE_TO_PRIMITIVE_TYPE = ImmutableMap.<Enum<Code>, Type>builder()
       .put(Code.BOOL, TYPE_BOOL)
       .put(Code.INT64, TYPE_INT64)
       .put(Code.FLOAT64, TYPE_FLOAT64)
