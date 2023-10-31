@@ -44,8 +44,8 @@ public class ValueBinderTest {
   private static final String PG_JSONB_METHOD_NAME = "pgJsonb";
   private static final String PG_NUMERIC_METHOD_NAME = "pgNumeric";
   private static final String BYTES_BASE64_METHOD_NAME = "bytesFromBase64";
-  private static final String GENERIC_PRIMITIVE_METHOD_NAME = "primitiveOfType";
-  private static final String GENERIC_PRIMITIVE_ARRAY_METHOD_NAME = "primitiveArrayOfType";
+  private static final String GENERIC_PRIMITIVE_METHOD_NAME = "primitiveToValue";
+  private static final String GENERIC_PRIMITIVE_ARRAY_METHOD_NAME = "primitivesToValue";
   public static final String DEFAULT_PG_NUMERIC = "1.23";
 
   private Value lastValue;

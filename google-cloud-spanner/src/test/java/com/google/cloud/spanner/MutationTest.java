@@ -68,7 +68,7 @@ public class MutationTest {
         .set("C1").to(Code.BOOL, Boolean.TRUE)
         .set("C2").to(Code.FLOAT64, Double.valueOf(40.1D))
         .set("C3").to(Code.JSON, "{\"color\":\"red\",\"value\":\"#f00\"}")
-        .set("C4").to(Value.primitiveOfType(Code.JSON, "[]"))
+        .set("C4").to(Value.primitiveToValue(Code.JSON, "[]"))
         .build();
     assertThat(m.getTable()).isEqualTo("T1");
     assertThat(m.getOperation()).isEqualTo(Mutation.Op.INSERT);
@@ -127,7 +127,7 @@ public class MutationTest {
         .set("C1").to(Code.BOOL, Boolean.TRUE)
         .set("C2").to(Code.FLOAT64, Double.valueOf(40.1D))
         .set("C3").to(Code.JSON, "{\"color\":\"red\",\"value\":\"#f00\"}")
-        .set("C4").to(Value.primitiveOfType(Code.JSON, "[]"))
+        .set("C4").to(Value.primitiveToValue(Code.JSON, "[]"))
         .build();
     assertThat(m.getTable()).isEqualTo("T1");
     assertThat(m.getOperation()).isEqualTo(Mutation.Op.UPDATE);
@@ -692,7 +692,7 @@ public class MutationTest {
         .set("boolValue")
         .to(Code.BOOL,  false)
         .set("anotherBoolValue")
-        .to(Value.primitiveOfType(Code.BOOL, Boolean.FALSE))
+        .to(Value.primitiveToValue(Code.BOOL, Boolean.FALSE))
         .set("float")
         .to(Code.FLOAT64, Double.valueOf(42.1))
         .set("floatNull")
@@ -700,13 +700,13 @@ public class MutationTest {
         .set("floatValue")
         .to(Code.FLOAT64, Double.valueOf(10D))
         .set("anotherFloatValue")
-        .to(Value.primitiveOfType(Code.FLOAT64, Double.valueOf(10D)))
+        .to(Value.primitiveToValue(Code.FLOAT64, Double.valueOf(10D)))
         .set("json")
         .to(Code.JSON, "{\"key\": \"value\"}}")
         .set("jsonNull")
         .to(Code.JSON, null)
         .set("anotherJsonNull")
-        .to(Value.primitiveOfType(Code.JSON, null))
+        .to(Value.primitiveToValue(Code.JSON, null))
         // TODO(gunjj@): Add tests for Arrays of above primitive types
         // .set("boolArr")
         // .toBoolArray(new boolean[] {true, false})

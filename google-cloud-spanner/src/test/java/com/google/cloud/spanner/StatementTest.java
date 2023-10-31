@@ -155,8 +155,8 @@ public class StatementTest {
     assertThat(stmt.hasBinding("bool_status")).isTrue();
     assertThat(stmt.getParameters())
         .containsExactlyEntriesIn(
-            ImmutableMap.of("double_id", Value.primitiveOfType(Code.FLOAT64, 1.1D),
-                "bool_status", Value.primitiveOfType(Code.BOOL, true)));
+            ImmutableMap.of("double_id", Value.primitiveToValue(Code.FLOAT64, 1.1D),
+                "bool_status", Value.primitiveToValue(Code.BOOL, true)));
     assertThat(stmt.toString()).startsWith(expectedSql);
     assertThat(stmt.toString()).contains("double_id: 1.1");
     assertThat(stmt.toString()).contains("bool_status: true");

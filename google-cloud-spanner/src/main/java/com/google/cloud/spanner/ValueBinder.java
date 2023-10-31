@@ -67,7 +67,7 @@ public abstract class ValueBinder<R> {
    * parameters conflicts with other binary methods when a null value is passed as {@code value}
    */
   public R to(Code type, @Nullable Object value) {
-    return handle(Value.primitiveOfType(type, value));
+    return handle(Value.primitiveToValue(type, value));
   }
 
   /** Binds to {@code Value.bool(value)} */
@@ -148,7 +148,7 @@ public abstract class ValueBinder<R> {
    * STRING, JSON, PG_JSONB, BYTES, TIMESTAMP and DATE.
    */
   public R toPrimitiveArrayOfType(@Nullable Iterable<?> values, Code type) {
-    return handle(Value.primitiveArrayOfType(values, type));
+    return handle(Value.primitivesToValue(type, values));
   }
 
   /** Binds to {@code Value.boolArray(values)} */

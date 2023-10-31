@@ -641,7 +641,7 @@ public class GrpcResultSetTest {
     PartialResultSet.Builder b = PartialResultSet.newBuilder()
         .setMetadata(makeMetadata(Type.struct(Type.StructField.of("f", type))));
     for (Object v : testValues) {
-      b.addValues(Value.primitiveOfType(code, v).toProto());
+      b.addValues(Value.primitiveToValue(code, v).toProto());
     }
     consumer.onPartialResultSet(b.build());
     consumer.onCompleted();

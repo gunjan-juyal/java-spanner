@@ -557,7 +557,6 @@ public final class Type implements Serializable {
   static Type fromProto(com.google.spanner.v1.Type proto) {
     Code typeCode = Code.fromProto(proto.getCode(), proto.getTypeAnnotation());
     if (isPrimitiveTypeCodeSupported(typeCode)) {
-      System.out.format("Type from map: %s\n", CODE_TO_PRIMITIVE_TYPE.get(typeCode));
       return CODE_TO_PRIMITIVE_TYPE.get(typeCode);
     }
     switch (typeCode) {

@@ -455,7 +455,6 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
         String fieldName = field.getName();
         Object value = rowData.get(i);
         Type fieldType = field.getType();
-        // TODO(gunjj@) Make this generic for primitive types
         if (Type.isPrimitiveTypeCodeSupported(fieldType.getCode())) {
           // Bytes needs specific decoding
           if (fieldType.getCode() == Type.Code.BYTES) {
@@ -472,7 +471,6 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
               if (elementType.getCode() != Type.Code.BYTES && Type.isPrimitiveTypeCodeSupported(
                   elementType.getCode())) {
                 // Bytes needs specific decoding
-                // TODO(gunjj@): Consider using toPrimitiveArrayValue() for this also
                 builder.set(fieldName)
                     .toPrimitiveArrayOfType((Iterable<?>) value, elementType.getCode());
               } else {
@@ -540,6 +538,8 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
       return true;
     }
 
+    // TODO(gunjj@) This method contains the logic for transforming proto (from resultset) to
+    //  java-language-specific type. Consider moving into Value or TypeHelper
     private static Object decodeValue(Type fieldType, com.google.protobuf.Value proto) {
       if (proto.getKindCase() == KindCase.NULL_VALUE) {
         return null;
@@ -548,7 +548,7 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
         case BOOL:
           checkType(fieldType, proto, KindCase.BOOL_VALUE);
           return proto.getBoolValue();
-        case INT64:
+        case INT64: // TODO(gunjj@) Insert the new implementation here
           checkType(fieldType, proto, KindCase.STRING_VALUE);
           return Long.parseLong(proto.getStringValue());
         case FLOAT64:
@@ -582,7 +582,8 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
         case UNRECOGNIZED:
           return proto;
         default:
-          throw new AssertionError("Unhandled type code: " + fieldType.getCode());
+          return TypeConversionDelegate.getInstance().parseType(fieldType, proto);
+          // throw new AssertionError("Unhandled type code: " + fieldType.getCode());
       }
     }
 
@@ -662,6 +663,9 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
       return (Long) rowData.get(columnIndex);
     }
 
+    // TODO(gunjj@) This method is autoboxing {@code Double} to {@code double}. Consider the impact
+    //  if we return Object {@code Double} instead, including when being used with ecosystem and
+    //  previous Spanner versions. Benefit being seeked: Reusability of mthods
     @Override
     protected double getDoubleInternal(int columnIndex) {
       return (Double) rowData.get(columnIndex);

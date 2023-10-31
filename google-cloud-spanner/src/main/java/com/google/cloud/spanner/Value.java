@@ -123,7 +123,7 @@ public abstract class Value implements Serializable {
    * @param value Primitive value of one of the supported types
    * @return Concrete value instance of the specified type
    */
-  public static Value primitiveOfType(Code type, @Nullable Object value) {
+  public static Value primitiveToValue(Code type, @Nullable Object value) {
     if (Type.isPrimitiveTypeCodeSupported(type)) {
       switch (type) {
         case INT64:
@@ -170,11 +170,11 @@ public abstract class Value implements Serializable {
    * classes. Arrays of the following primitive types are supported: BOOL, INT64, FLOAT64, NUMERIC,
    * PG_NUMERIC, STRING, JSON, PG_JSONB, BYTES, TIMESTAMP and DATE.
    *
+   * @param type {@link Code} of the value
    * @param values Iterable values of one of the supported types
-   * @param type {@link Type.Code} of the value
    * @return Concrete value instance of the specified array type
    */
-  public static Value primitiveArrayOfType(@Nullable Iterable<?> values, Code type) {
+  public static Value primitivesToValue(Code type, @Nullable Iterable<?> values) {
     if (Type.isPrimitiveTypeCodeSupported(type)) {
       switch (type) {
         case INT64:
@@ -236,12 +236,12 @@ public abstract class Value implements Serializable {
    * @param v the value, which may be null
    */
   public static Value int64(@Nullable Long v) {
-    return new Int64Impl(v == null, v == null ? 0 : v);
+    return new GenericValue<Long>(v == null, Type.int64(), v);
   }
 
   /** Returns an {@code INT64} value. */
   public static Value int64(long v) {
-    return new Int64Impl(false, v);
+    return new GenericValue<Long>(false, Type.int64(), Long.valueOf(v));
   }
 
   /**
@@ -1220,6 +1220,50 @@ public abstract class Value implements Serializable {
     }
   }
 
+  // TODO(gunjj@) Consider adding a static method to convert (Type fieldType, com.google.protobuf.Value proto) to Object (Long, Date etc);
+  //  this is needed for eliminating transformation logic in AbstractResultSet::decodeValue
+  public static class GenericValue<R> extends AbstractValue {
+    private final Type type;
+    private final R value;  // Language-specific object that encapsulates the data (e.g. com.google.cloud.Date, java.lang.Long etc)
+    // private final boolean isNull;
+
+    private GenericValue(boolean isNull, Type type, R value) {
+      super(isNull, type);
+      // TODO(gunjj@) Support more type codes
+      Preconditions.checkArgument(type.getCode() == Code.INT64, "Type code [%s] not supported in GenericValue", type.getCode());
+      this.type = type;
+      // this.isNull = isNull;
+      this.value = value;
+    }
+
+    @Override
+    void valueToString(StringBuilder b) {
+      b.append(TypeConversionDelegate.getInstance().toString(type, value));
+    }
+
+    @Override
+    com.google.protobuf.Value valueToProto() {
+      return TypeConversionDelegate.getInstance().toProto(type, value);
+      // return null;
+    }
+
+    @Override
+    boolean valueEquals(Value other) {
+      return TypeConversionDelegate.getInstance().equals(type, value, other);
+    }
+
+    @Override
+    int valueHash() {
+      return TypeConversionDelegate.getInstance().valueHash(type, value);
+    }
+
+    @Override
+    public long getInt64() {
+      checkNotNull();
+      return (Long) value;
+    }
+  }
+
   /**
    * This {@link Value} implementation is backed by a generic protobuf Value instance. It is used
    * for untyped Values that are created by users, and for values with an unrecognized types that
@@ -1356,12 +1400,14 @@ public abstract class Value implements Serializable {
     private Int64Impl(boolean isNull, long value) {
       super(isNull, Type.int64());
       this.value = value;
+      throw new RuntimeException("Not implemented - moved to GenericValue");
     }
 
     @Override
     public long getInt64() {
-      checkNotNull();
-      return value;
+      throw new RuntimeException("Not implemented - moved to GenericValue");
+      // checkNotNull();
+      // return value;
     }
 
     @Override
