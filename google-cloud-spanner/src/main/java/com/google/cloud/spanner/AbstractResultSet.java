@@ -33,6 +33,7 @@ import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Type.StructField;
 import com.google.cloud.spanner.spi.v1.SpannerRpc;
+import com.google.cloud.spanner.types.TypeConversionDelegate;
 import com.google.cloud.spanner.v1.stub.SpannerStubSettings;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -472,7 +473,7 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
                   elementType.getCode())) {
                 // Bytes needs specific decoding
                 builder.set(fieldName)
-                    .toPrimitiveArrayOfType((Iterable<?>) value, elementType.getCode());
+                    .to((Iterable<?>) value, elementType.getCode());
               } else {
                 switch (elementType.getCode()) {
                   case BYTES:

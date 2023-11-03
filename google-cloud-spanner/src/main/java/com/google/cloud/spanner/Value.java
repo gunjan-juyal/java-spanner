@@ -21,6 +21,7 @@ import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.AbstractResultSet.LazyByteArray;
 import com.google.cloud.spanner.Type.Code;
+import com.google.cloud.spanner.types.TypeConversionDelegate;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -37,8 +38,10 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -170,11 +173,11 @@ public abstract class Value implements Serializable {
    * classes. Arrays of the following primitive types are supported: BOOL, INT64, FLOAT64, NUMERIC,
    * PG_NUMERIC, STRING, JSON, PG_JSONB, BYTES, TIMESTAMP and DATE.
    *
-   * @param type {@link Code} of the value
    * @param values Iterable values of one of the supported types
+   * @param type {@link Code} of the value
    * @return Concrete value instance of the specified array type
    */
-  public static Value primitivesToValue(Code type, @Nullable Iterable<?> values) {
+  public static Value primitivesToValue(@Nullable Iterable<?> values, Code type) {
     if (Type.isPrimitiveTypeCodeSupported(type)) {
       switch (type) {
         case INT64:
@@ -250,12 +253,14 @@ public abstract class Value implements Serializable {
    * @param v the value, which may be null
    */
   public static Value float64(@Nullable Double v) {
-    return new Float64Impl(v == null, v == null ? 0 : v);
+    // return new Float64Impl(v == null, v == null ? 0 : v);
+    return new GenericValue<Double>(v == null, Type.float64(), v);
   }
 
   /** Returns a {@code FLOAT64} value. */
   public static Value float64(double v) {
-    return new Float64Impl(false, v);
+    // return new Float64Impl(false, v);
+    return new GenericValue<Double>(false, Type.float64(), Double.valueOf(v));
   }
 
   /**
@@ -314,7 +319,8 @@ public abstract class Value implements Serializable {
    * @param v the value, which may be null
    */
   public static Value string(@Nullable String v) {
-    return new StringImpl(v == null, v);
+    // return new StringImpl(v == null, v);
+    return new GenericValue<String>(v == null, Type.string(), v);
   }
 
   /**
@@ -323,7 +329,7 @@ public abstract class Value implements Serializable {
    * @param v the value, which may be null
    */
   public static Value json(@Nullable String v) {
-    return new JsonImpl(v == null, v);
+    return new GenericValue<String>(v == null, Type.json(), v);
   }
 
   /**
@@ -332,7 +338,7 @@ public abstract class Value implements Serializable {
    * @param v the value, which may be null
    */
   public static Value pgJsonb(@Nullable String v) {
-    return new PgJsonbImpl(v == null, v);
+    return new GenericValue<String>(v == null, Type.pgJsonb(), v);
   }
 
   /**
@@ -1222,17 +1228,23 @@ public abstract class Value implements Serializable {
 
   // TODO(gunjj@) Consider adding a static method to convert (Type fieldType, com.google.protobuf.Value proto) to Object (Long, Date etc);
   //  this is needed for eliminating transformation logic in AbstractResultSet::decodeValue
-  public static class GenericValue<R> extends AbstractValue {
+  private static class GenericValue<R> extends AbstractValue {
+
+    private static final Set<Code> STRING_BACKED_TYPE_CODES = Collections.unmodifiableSet(
+        EnumSet.of(Code.STRING, Code.JSON, Code.PG_JSONB, Code.PG_NUMERIC, Code.UNRECOGNIZED));
+
+    private static final Set<Code> GENERIC_SUPPORTED_TYPE_CODES = Collections.unmodifiableSet(
+        EnumSet.of(Code.STRING, Code.JSON, Code.PG_JSONB, Code.INT64, Code.FLOAT64));
+
     private final Type type;
     private final R value;  // Language-specific object that encapsulates the data (e.g. com.google.cloud.Date, java.lang.Long etc)
-    // private final boolean isNull;
 
     private GenericValue(boolean isNull, Type type, R value) {
       super(isNull, type);
-      // TODO(gunjj@) Support more type codes
-      Preconditions.checkArgument(type.getCode() == Code.INT64, "Type code [%s] not supported in GenericValue", type.getCode());
+      // TODO(gunjj@) Rewrite to make an exclusion list instead of allowlisting
+      Preconditions.checkArgument(GENERIC_SUPPORTED_TYPE_CODES.contains(type.getCode()),
+          "Type code [%s] not supported in GenericValue", type.getCode());
       this.type = type;
-      // this.isNull = isNull;
       this.value = value;
     }
 
@@ -1257,10 +1269,49 @@ public abstract class Value implements Serializable {
       return TypeConversionDelegate.getInstance().valueHash(type, value);
     }
 
+    @Nonnull
+    @Override
+    public String getAsString() {
+      return TypeConversionDelegate.getInstance().getAsString(type, value, isNull());
+    }
+
+    // Type specific methods follow. The Java client library provides strongly-typed getters/setters
+    //  for supported data types
+
     @Override
     public long getInt64() {
       checkNotNull();
       return (Long) value;
+    }
+
+    @Override
+    public double getFloat64() {
+      checkNotNull();
+      return (Double) value;
+    }
+
+    @Override
+    public String getString() {
+      return getStringBackedValue();
+    }
+
+    @Override
+    public String getJson() {
+      return getStringBackedValue();
+    }
+
+    @Override
+    public String getPgJsonb() {
+      return getStringBackedValue();
+    }
+
+    private String getStringBackedValue() {  // Only "string-like" types support this, namely String, JSON, JSONB, PG_NUMERIC and ProtoBackedValue
+      checkNotNull();
+      Code code = this.type.getCode();
+      if (STRING_BACKED_TYPE_CODES.contains(code)) {
+        return (String) value;
+      }
+      return super.getString();
     }
   }
 
@@ -1394,77 +1445,77 @@ public abstract class Value implements Serializable {
     }
   }
 
-  private static class Int64Impl extends AbstractValue {
-    private final long value;
+  // private static class Int64Impl extends AbstractValue {
+  //   private final long value;
+  //
+  //   private Int64Impl(boolean isNull, long value) {
+  //     super(isNull, Type.int64());
+  //     this.value = value;
+  //     throw new RuntimeException("Not implemented - moved to GenericValue");
+  //   }
+  //
+  //   @Override
+  //   public long getInt64() {
+  //     throw new RuntimeException("Not implemented - moved to GenericValue");
+  //     // checkNotNull();
+  //     // return value;
+  //   }
+  //
+  //   @Override
+  //   com.google.protobuf.Value valueToProto() {
+  //     return com.google.protobuf.Value.newBuilder().setStringValue(Long.toString(value)).build();
+  //   }
+  //
+  //   @Override
+  //   void valueToString(StringBuilder b) {
+  //     b.append(value);
+  //   }
+  //
+  //   @Override
+  //   boolean valueEquals(Value v) {
+  //     return ((Int64Impl) v).value == value;
+  //   }
+  //
+  //   @Override
+  //   int valueHash() {
+  //     return Long.valueOf(value).hashCode();
+  //   }
+  // }
 
-    private Int64Impl(boolean isNull, long value) {
-      super(isNull, Type.int64());
-      this.value = value;
-      throw new RuntimeException("Not implemented - moved to GenericValue");
-    }
-
-    @Override
-    public long getInt64() {
-      throw new RuntimeException("Not implemented - moved to GenericValue");
-      // checkNotNull();
-      // return value;
-    }
-
-    @Override
-    com.google.protobuf.Value valueToProto() {
-      return com.google.protobuf.Value.newBuilder().setStringValue(Long.toString(value)).build();
-    }
-
-    @Override
-    void valueToString(StringBuilder b) {
-      b.append(value);
-    }
-
-    @Override
-    boolean valueEquals(Value v) {
-      return ((Int64Impl) v).value == value;
-    }
-
-    @Override
-    int valueHash() {
-      return Long.valueOf(value).hashCode();
-    }
-  }
-
-  private static class Float64Impl extends AbstractValue {
-    private final double value;
-
-    private Float64Impl(boolean isNull, double value) {
-      super(isNull, Type.float64());
-      this.value = value;
-    }
-
-    @Override
-    public double getFloat64() {
-      checkNotNull();
-      return value;
-    }
-
-    @Override
-    com.google.protobuf.Value valueToProto() {
-      return com.google.protobuf.Value.newBuilder().setNumberValue(value).build();
-    }
-
-    @Override
-    void valueToString(StringBuilder b) {
-      b.append(value);
-    }
-
-    @Override
-    boolean valueEquals(Value v) {
-      return ((Float64Impl) v).value == value;
-    }
-
-    @Override
-    int valueHash() {
-      return Double.valueOf(value).hashCode();
-    }
-  }
+  // private static class Float64Impl extends AbstractValue {
+  //   private final double value;
+  //
+  //   private Float64Impl(boolean isNull, double value) {
+  //     super(isNull, Type.float64());
+  //     this.value = value;
+  //   }
+  //
+  //   @Override
+  //   public double getFloat64() {
+  //     checkNotNull();
+  //     return value;
+  //   }
+  //
+  //   @Override
+  //   com.google.protobuf.Value valueToProto() {
+  //     return com.google.protobuf.Value.newBuilder().setNumberValue(value).build();
+  //   }
+  //
+  //   @Override
+  //   void valueToString(StringBuilder b) {
+  //     b.append(value);
+  //   }
+  //
+  //   @Override
+  //   boolean valueEquals(Value v) {
+  //     return ((Float64Impl) v).value == value;
+  //   }
+  //
+  //   @Override
+  //   int valueHash() {
+  //     return Double.valueOf(value).hashCode();
+  //   }
+  // }
 
   abstract static class AbstractObjectValue<T> extends AbstractValue {
     final T value;
@@ -1509,99 +1560,99 @@ public abstract class Value implements Serializable {
     }
   }
 
-  private static class StringImpl extends AbstractObjectValue<String> {
+  // private static class StringImpl extends AbstractObjectValue<String> {
+  //
+  //   private StringImpl(boolean isNull, @Nullable String value) {
+  //     super(isNull, Type.string(), value);
+  //   }
+  //
+  //   @Override
+  //   public String getString() {
+  //     checkNotNull();
+  //     return value;
+  //   }
+  //
+  //   @Nonnull
+  //   @Override
+  //   public String getAsString() {
+  //     return isNull() ? NULL_STRING : value;
+  //   }
+  //
+  //   @Override
+  //   void valueToString(StringBuilder b) {
+  //     if (value.length() > MAX_DEBUG_STRING_LENGTH) {
+  //       b.append(value, 0, MAX_DEBUG_STRING_LENGTH - ELLIPSIS.length()).append(ELLIPSIS);
+  //     } else {
+  //       b.append(value);
+  //     }
+  //   }
+  // }
 
-    private StringImpl(boolean isNull, @Nullable String value) {
-      super(isNull, Type.string(), value);
-    }
+  // private static class JsonImpl extends AbstractObjectValue<String> {
+  //
+  //   private JsonImpl(boolean isNull, @Nullable String value) {
+  //     super(isNull, Type.json(), value);
+  //   }
+  //
+  //   @Override
+  //   public String getJson() {
+  //     checkNotNull();
+  //     return value;
+  //   }
+  //
+  //   @Nonnull
+  //   @Override
+  //   public String getAsString() {
+  //     return isNull() ? NULL_STRING : value;
+  //   }
+  //
+  //   @Override
+  //   public String getString() {
+  //     return getJson();
+  //   }
+  //
+  //   @Override
+  //   void valueToString(StringBuilder b) {
+  //     if (value.length() > MAX_DEBUG_STRING_LENGTH) {
+  //       b.append(value, 0, MAX_DEBUG_STRING_LENGTH - ELLIPSIS.length()).append(ELLIPSIS);
+  //     } else {
+  //       b.append(value);
+  //     }
+  //   }
+  // }
 
-    @Override
-    public String getString() {
-      checkNotNull();
-      return value;
-    }
-
-    @Nonnull
-    @Override
-    public String getAsString() {
-      return isNull() ? NULL_STRING : value;
-    }
-
-    @Override
-    void valueToString(StringBuilder b) {
-      if (value.length() > MAX_DEBUG_STRING_LENGTH) {
-        b.append(value, 0, MAX_DEBUG_STRING_LENGTH - ELLIPSIS.length()).append(ELLIPSIS);
-      } else {
-        b.append(value);
-      }
-    }
-  }
-
-  private static class JsonImpl extends AbstractObjectValue<String> {
-
-    private JsonImpl(boolean isNull, @Nullable String value) {
-      super(isNull, Type.json(), value);
-    }
-
-    @Override
-    public String getJson() {
-      checkNotNull();
-      return value;
-    }
-
-    @Nonnull
-    @Override
-    public String getAsString() {
-      return isNull() ? NULL_STRING : value;
-    }
-
-    @Override
-    public String getString() {
-      return getJson();
-    }
-
-    @Override
-    void valueToString(StringBuilder b) {
-      if (value.length() > MAX_DEBUG_STRING_LENGTH) {
-        b.append(value, 0, MAX_DEBUG_STRING_LENGTH - ELLIPSIS.length()).append(ELLIPSIS);
-      } else {
-        b.append(value);
-      }
-    }
-  }
-
-  private static class PgJsonbImpl extends AbstractObjectValue<String> {
-
-    private PgJsonbImpl(boolean isNull, @Nullable String value) {
-      super(isNull, Type.pgJsonb(), value);
-    }
-
-    @Override
-    public String getPgJsonb() {
-      checkNotNull();
-      return value;
-    }
-
-    @Nonnull
-    @Override
-    public String getAsString() {
-      return isNull() ? NULL_STRING : value;
-    }
-
-    @Override
-    public String getString() {
-      return getPgJsonb();
-    }
-
-    @Override
-    void valueToString(StringBuilder b) {
-      if (value.length() > MAX_DEBUG_STRING_LENGTH) {
-        b.append(value, 0, MAX_DEBUG_STRING_LENGTH - ELLIPSIS.length()).append(ELLIPSIS);
-      } else {
-        b.append(value);
-      }
-    }
-  }
+  // private static class PgJsonbImpl extends AbstractObjectValue<String> {
+  //
+  //   private PgJsonbImpl(boolean isNull, @Nullable String value) {
+  //     super(isNull, Type.pgJsonb(), value);
+  //   }
+  //
+  //   @Override
+  //   public String getPgJsonb() {
+  //     checkNotNull();
+  //     return value;
+  //   }
+  //
+  //   @Nonnull
+  //   @Override
+  //   public String getAsString() {
+  //     return isNull() ? NULL_STRING : value;
+  //   }
+  //
+  //   @Override
+  //   public String getString() {
+  //     return getPgJsonb();
+  //   }
+  //
+  //   @Override
+  //   void valueToString(StringBuilder b) {
+  //     if (value.length() > MAX_DEBUG_STRING_LENGTH) {
+  //       b.append(value, 0, MAX_DEBUG_STRING_LENGTH - ELLIPSIS.length()).append(ELLIPSIS);
+  //     } else {
+  //       b.append(value);
+  //     }
+  //   }
+  // }
 
   private static class LazyBytesImpl extends AbstractObjectValue<LazyByteArray> {
 

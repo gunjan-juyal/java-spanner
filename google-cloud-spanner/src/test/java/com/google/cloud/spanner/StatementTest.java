@@ -98,20 +98,48 @@ public class StatementTest {
             .build();
     reserializeAndAssert(stmt);
 
+    // Autoboxing and coersion - old methods vs generic
+    stmt = Statement.newBuilder("SELECT * FROM table WHERE ")
+            .append("float_field = @float_field")
+            .bind("float_field")
+            .to(Float.valueOf(40.1F))
+            .build();
+    String expectedSql = "SELECT * FROM table WHERE float_field = @float_field";
+    assertThat(stmt.getSql()).isEqualTo(expectedSql);
+    assertThat(stmt.hasBinding("float_field")).isTrue();
+    assertThat(stmt.getParameters())
+        .containsExactlyEntriesIn(
+            ImmutableMap.of("float_field", Value.float64(40.1F)));
+    assertThat(stmt.toString()).startsWith(expectedSql);
+    assertThat(stmt.toString()).contains("float_field: 40."); // Ignoring mantissa since float is approximate
+
+    stmt = Statement.newBuilder("SELECT * FROM table WHERE ")
+        .append("float_field = @float_field")
+        .bind("float_field")
+        .to(Code.FLOAT64, Float.valueOf(40.1F))
+        .build();
+    expectedSql = "SELECT * FROM table WHERE float_field = @float_field";
+    assertThat(stmt.getSql()).isEqualTo(expectedSql);
+    assertThat(stmt.hasBinding("float_field")).isTrue();
+    assertThat(stmt.getParameters())
+        .containsExactlyEntriesIn(
+            ImmutableMap.of("float_field", Value.float64(40.1F)));
+    assertThat(stmt.toString()).startsWith(expectedSql);
+    assertThat(stmt.toString()).contains("float_field: 40."); // Ignoring mantissa since float is approximate
+
     // Negative testing of invalid call of generic method
-    // TODO(gunjj@): Get this reviewed - is this a risky API, especially in Java's strongly-typed world?
     assertThrows(ClassCastException.class,
         () -> Statement.newBuilder("SELECT * FROM table WHERE ")
             .append("float_field = @float_field ")
             .bind("float_field")
-            .to(Code.FLOAT64, Float.valueOf(40.1F))
+            .to(Code.FLOAT64, 40L)
             .build());
 
     assertThrows(ClassCastException.class,
         () -> Statement.newBuilder("SELECT * FROM table WHERE ")
-            .append("float_field = @float_field ")
-            .bind("float_field")
-            .to(Code.FLOAT64, 40.1F)
+            .append("long_field = @long_field ")
+            .bind("long_field")
+            .to(Code.INT64, 40.1F)
             .build());
   }
 

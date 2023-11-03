@@ -1,14 +1,32 @@
-package com.google.cloud.spanner;
+/*
+ * Copyright 2017 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
+package com.google.cloud.spanner.types;
+
+import com.google.cloud.spanner.Type;
 import com.google.cloud.spanner.Type.Code;
+import com.google.cloud.spanner.Value;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.Value.KindCase;
 
 /**
- * Converts language-specific Long values from and to different encodings - wire-format, hash, string etc
+ * Converts language-specific FLOAT64 (Long) values from and to different encodings - wire-format, hash, string etc
  */
 public class LongConverter implements ConverterInterface<Long> {
-
+  private static final String NULL_STRING = "NULL";
   private static ConverterInterface instance = new LongConverter();
 
   private LongConverter() {
@@ -35,13 +53,8 @@ public class LongConverter implements ConverterInterface<Long> {
   }
 
   @Override
-  public String getAsString(com.google.protobuf.Value proto, KindCase protoKindCase) {
-    // TODO(gunjj@) This calls valueToString() of the type-specific classes in most cases, or
-    //  special cases in other (e.g. JSON/STRING where a null string results in value "NULL")
-    //  WIP - Review the usage from GenericValue class - it has a `<T> value` instance (e.g. Long),
-    //  hence, we should usually take that as a param, since interaction is like:
-    //  ConverterInterface <-> TypeConversionDelegate <-> Value / AbstractValue
-    return proto.getStringValue();
+  public String getAsString(Long value, boolean isNull) {
+    return isNull ? NULL_STRING : toString(value);
   }
 
   @Override
@@ -51,7 +64,7 @@ public class LongConverter implements ConverterInterface<Long> {
 
   // TODO(gunjj@) Much of this method may be generic - consider reusing for various ConverterInterfaces
   @Override
-  public boolean equals(Long value, Value other) {
+  public boolean equals(Type fieldType, Long value, Value other) {
     // null check
     if (value == null || other == null) {
       return false;

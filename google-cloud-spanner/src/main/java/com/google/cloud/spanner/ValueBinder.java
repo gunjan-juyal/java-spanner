@@ -147,8 +147,8 @@ public abstract class ValueBinder<R> {
    * of the following primitive types are supported: BOOL, INT64, FLOAT64, NUMERIC, PG_NUMERIC,
    * STRING, JSON, PG_JSONB, BYTES, TIMESTAMP and DATE.
    */
-  public R toPrimitiveArrayOfType(@Nullable Iterable<?> values, Code type) {
-    return handle(Value.primitivesToValue(type, values));
+  public R to(@Nullable Iterable<?> values, Code type) {
+    return handle(Value.primitivesToValue(values, type));
   }
 
   /** Binds to {@code Value.boolArray(values)} */

@@ -59,6 +59,8 @@ public class ClientSideStatementsTest extends AbstractSqlScriptTest {
     }
   }
 
+  // TODO(gunjj@) Failing test for file "ClientSideStatementsTest.sql"
+  //  "com.google.cloud.spanner.SpannerException: UNKNOWN: com.google.cloud.spanner.Value$Int64Impl; local class incompatible: stream classdesc serialVersionUID = 1923284599991110606, local class serialVersionUID = -2148375380510912011"
   @Test
   public void testExecuteClientSideStatementsScript() throws Exception {
     SqlScriptVerifier verifier = new SqlScriptVerifier(new TestConnectionProvider(dialect));

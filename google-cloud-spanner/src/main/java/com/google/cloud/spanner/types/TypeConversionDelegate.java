@@ -1,8 +1,26 @@
-package com.google.cloud.spanner;
+/*
+ * Copyright 2017 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
+package com.google.cloud.spanner.types;
 
 import static com.google.cloud.spanner.SpannerExceptionFactory.newSpannerException;
 
+import com.google.cloud.spanner.ErrorCode;
+import com.google.cloud.spanner.SpannerExceptionFactory;
+import com.google.cloud.spanner.Type;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.Value;
 import com.google.protobuf.Value.KindCase;
@@ -41,7 +59,7 @@ public class TypeConversionDelegate {
   private static void checkType(
       Type fieldType, com.google.protobuf.Value proto, KindCase expected) {
     if (proto.getKindCase() != expected) {
-      throw newSpannerException(
+      throw SpannerExceptionFactory.newSpannerException(
           ErrorCode.INTERNAL,
           "Invalid value for column type "
               + fieldType
@@ -53,24 +71,10 @@ public class TypeConversionDelegate {
   }
 
   public <R> Value toProto(Type fieldType, R value) {
-    // Step-1: Get mapper for this type
     ConverterInterface converter = getConverterInterface(fieldType);
-
-    // Step-2: Extract value
     return converter.toProto(value);
   }
 
-  public <R> int valueHash(Type fieldType, R value) {
-    // Step-1: Get mapper for this type
-    ConverterInterface converter = getConverterInterface(fieldType);
-
-    // Step-2: Extract value
-    return converter.valueHash(value);
-  }
-
-  public <R> boolean equals(Type fieldType, R value, com.google.cloud.spanner.Value other) {
-    return getConverterInterface(fieldType).equals(value, other);
-  }
   private static ConverterInterface getConverterInterface(Type fieldType) {
     List<TypeMapper> mappers =  Arrays.stream(TypeMapper.values()).filter(m -> m.getCode() == fieldType.getCode()).collect(
         Collectors.toList());
@@ -84,7 +88,20 @@ public class TypeConversionDelegate {
     return converter;
   }
 
+  public <R> int valueHash(Type fieldType, R value) {
+    ConverterInterface converter = getConverterInterface(fieldType);
+    return converter.valueHash(value);
+  }
+
+  public <R> boolean equals(Type fieldType, R value, com.google.cloud.spanner.Value other) {
+    return getConverterInterface(fieldType).equals(fieldType, value, other);
+  }
+
   public <R> String toString(Type fieldType, R value) {
     return getConverterInterface(fieldType).toString(value);
+  }
+
+  public <R> String getAsString(Type fieldtype, R value, boolean isNull) {
+    return getConverterInterface(fieldtype).getAsString(value, isNull);
   }
 }
