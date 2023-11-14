@@ -225,12 +225,12 @@ public abstract class Value implements Serializable {
    * @param v the value, which may be null
    */
   public static Value bool(@Nullable Boolean v) {
-    return new BoolImpl(v == null, v == null ? false : v);
+    return new GenericValue<Boolean>(v == null, Type.bool(), v == null ? false : v);
   }
 
   /** Returns a {@code BOOL} value. */
   public static Value bool(boolean v) {
-    return new BoolImpl(false, v);
+    return new GenericValue<Boolean>(false, Type.bool(), v);
   }
 
   /**
@@ -1230,11 +1230,11 @@ public abstract class Value implements Serializable {
   //  this is needed for eliminating transformation logic in AbstractResultSet::decodeValue
   private static class GenericValue<R> extends AbstractValue {
 
-    private static final Set<Code> STRING_BACKED_TYPE_CODES = Collections.unmodifiableSet(
-        EnumSet.of(Code.STRING, Code.JSON, Code.PG_JSONB, Code.PG_NUMERIC, Code.UNRECOGNIZED));
+    private static final Set<Code> STRING_COERCIBLE_TYPE_CODES = Collections.unmodifiableSet(
+        EnumSet.of(Code.STRING, Code.JSON, Code.PG_JSONB));
 
     private static final Set<Code> GENERIC_SUPPORTED_TYPE_CODES = Collections.unmodifiableSet(
-        EnumSet.of(Code.STRING, Code.JSON, Code.PG_JSONB, Code.INT64, Code.FLOAT64));
+        EnumSet.of(Code.STRING, Code.JSON, Code.PG_JSONB, Code.INT64, Code.FLOAT64, Code.BOOL));
 
     private final Type type;
     private final R value;  // Language-specific object that encapsulates the data (e.g. com.google.cloud.Date, java.lang.Long etc)
@@ -1279,39 +1279,53 @@ public abstract class Value implements Serializable {
     //  for supported data types
 
     @Override
+    public boolean getBool() {
+      checkType(Type.bool());
+      checkNotNull();
+      return (Boolean) value;
+    }
+
+    @Override
     public long getInt64() {
+      checkType(Type.int64());
       checkNotNull();
       return (Long) value;
     }
 
     @Override
     public double getFloat64() {
+      checkType(Type.float64());
       checkNotNull();
       return (Double) value;
     }
 
     @Override
     public String getString() {
-      return getStringBackedValue();
+      return getStringCoercibleValue(Type.string());
     }
 
     @Override
     public String getJson() {
-      return getStringBackedValue();
+      return getStringCoercibleValue(Type.json());
     }
 
     @Override
     public String getPgJsonb() {
-      return getStringBackedValue();
+      return getStringCoercibleValue(Type.pgJsonb());
     }
 
-    private String getStringBackedValue() {  // Only "string-like" types support this, namely String, JSON, JSONB, PG_NUMERIC and ProtoBackedValue
-      checkNotNull();
-      Code code = this.type.getCode();
-      if (STRING_BACKED_TYPE_CODES.contains(code)) {
-        return (String) value;
+    // String-coercible types support getString() even if they are of a different type String, JSON, JSONB
+    private String getStringCoercibleValue(Type expectedType) {
+      if (!STRING_COERCIBLE_TYPE_CODES.contains(expectedType.getCode())) {
+        throw new AssertionError("Should only be called for String-coercible types");
       }
-      return super.getString();
+      checkNotNull();
+      if (STRING_COERCIBLE_TYPE_CODES.contains(this.type.getCode())) {
+        return (String) value;
+      } else {
+        checkType(expectedType);
+        return null;
+      }
     }
   }
 

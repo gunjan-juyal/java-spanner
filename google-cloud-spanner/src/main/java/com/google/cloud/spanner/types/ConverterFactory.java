@@ -33,7 +33,10 @@ public class ConverterFactory {
       return DoubleConverter.getInstance();
     } else if (javaTypeConverter.equals(StringConverter.class)) {
       return StringConverter.getInstance();
-    } else {
+    } else if (javaTypeConverter.equals(BooleanConverter.class)) {
+      return BooleanConverter.getInstance();
+    }
+    else {
       throw new RuntimeException("Not implemented");
     }
   }

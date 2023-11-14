@@ -723,6 +723,7 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
       final Type columnType = structField.getType();
       final boolean isNull = rowData.get(columnIndex) == null;
       switch (columnType.getCode()) {
+        // TODO(gunjj@) Should we plug-in GenericType construction here instead of calling the "Internal" method?
         case BOOL:
           return Value.bool(isNull ? null : getBooleanInternal(columnIndex));
         case INT64:
