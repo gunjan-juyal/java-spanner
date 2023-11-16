@@ -220,14 +220,10 @@ class ChecksumResultSet extends ReplaceableForwardingResultSet implements Retria
         } else {
           Code type = row.getColumnType(i).getCode();
 
-          if (Type.isPrimitiveTypeCodeSupported(type) && type != Code.NUMERIC) {
+          if (Type.isPrimitiveTypeCodeSupported(type)) {
             funnelValue(type, TypeHelper.toPrimitiveType(row.getValue(i), type), into);
           } else {
             switch (type) {
-              // Special handling for NUMERIC - since BigDecimal has larger precision than NUMERIC and there is specific handling in these functions
-              case NUMERIC:
-                funnelValue(type, row.getBigDecimal(i), into);
-                break;
               case ARRAY:
                 funnelArray(row.getColumnType(i).getArrayElementType().getCode(), row, i, into);
                 break;
@@ -290,11 +286,6 @@ class ChecksumResultSet extends ReplaceableForwardingResultSet implements Retria
             break;
           case FLOAT64:
             into.putDouble((Double) value);
-            break;
-          case NUMERIC:
-            String stringRepresentation = value.toString();
-            into.putInt(stringRepresentation.length());
-            into.putUnencodedChars(stringRepresentation);
             break;
           case INT64:
             into.putLong((Long) value);

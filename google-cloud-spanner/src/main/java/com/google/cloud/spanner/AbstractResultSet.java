@@ -58,7 +58,6 @@ import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.io.IOException;
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -549,14 +548,11 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
         case BOOL:
           checkType(fieldType, proto, KindCase.BOOL_VALUE);
           return proto.getBoolValue();
-        case INT64: // TODO(gunjj@) Insert the new implementation here
+        case INT64: // TODO(gunjj@) Insert the new implementation here : return TypeConversionDelegate.getInstance().parseType(fieldType, proto);
           checkType(fieldType, proto, KindCase.STRING_VALUE);
           return Long.parseLong(proto.getStringValue());
         case FLOAT64:
           return valueProtoToFloat64(proto);
-        case NUMERIC:
-          checkType(fieldType, proto, KindCase.STRING_VALUE);
-          return new BigDecimal(proto.getStringValue());
         case PG_NUMERIC:
         case STRING:
         case JSON:
@@ -583,8 +579,7 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
         case UNRECOGNIZED:
           return proto;
         default:
-          return TypeConversionDelegate.getInstance().parseType(fieldType, proto);
-          // throw new AssertionError("Unhandled type code: " + fieldType.getCode());
+          throw new AssertionError("Unhandled type code: " + fieldType.getCode());
       }
     }
 
@@ -610,7 +605,6 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
         case FLOAT64:
           return new Float64Array(listValue);
         case BOOL:
-        case NUMERIC:
         case PG_NUMERIC:
         case STRING:
         case JSON:
@@ -673,11 +667,6 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
     }
 
     @Override
-    protected BigDecimal getBigDecimalInternal(int columnIndex) {
-      return (BigDecimal) rowData.get(columnIndex);
-    }
-
-    @Override
     protected String getStringInternal(int columnIndex) {
       return (String) rowData.get(columnIndex);
     }
@@ -728,8 +717,6 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
           return Value.bool(isNull ? null : getBooleanInternal(columnIndex));
         case INT64:
           return Value.int64(isNull ? null : getLongInternal(columnIndex));
-        case NUMERIC:
-          return Value.numeric(isNull ? null : getBigDecimalInternal(columnIndex));
         case PG_NUMERIC:
           return Value.pgNumeric(isNull ? null : getStringInternal(columnIndex));
         case FLOAT64:
@@ -758,8 +745,6 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
               return Value.boolArray(isNull ? null : getBooleanListInternal(columnIndex));
             case INT64:
               return Value.int64Array(isNull ? null : getLongListInternal(columnIndex));
-            case NUMERIC:
-              return Value.numericArray(isNull ? null : getBigDecimalListInternal(columnIndex));
             case PG_NUMERIC:
               return Value.pgNumericArray(isNull ? null : getStringListInternal(columnIndex));
             case FLOAT64:
@@ -831,12 +816,6 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
     @Override
     protected Float64Array getDoubleListInternal(int columnIndex) {
       return (Float64Array) rowData.get(columnIndex);
-    }
-
-    @Override
-    @SuppressWarnings("unchecked") // We know ARRAY<NUMERIC> produces a List<BigDecimal>.
-    protected List<BigDecimal> getBigDecimalListInternal(int columnIndex) {
-      return (List<BigDecimal>) rowData.get(columnIndex);
     }
 
     @Override
@@ -1440,11 +1419,6 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
   }
 
   @Override
-  protected BigDecimal getBigDecimalInternal(int columnIndex) {
-    return currRow().getBigDecimalInternal(columnIndex);
-  }
-
-  @Override
   protected String getStringInternal(int columnIndex) {
     return currRow().getStringInternal(columnIndex);
   }
@@ -1507,11 +1481,6 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
   @Override
   protected List<Double> getDoubleListInternal(int columnIndex) {
     return currRow().getDoubleListInternal(columnIndex);
-  }
-
-  @Override
-  protected List<BigDecimal> getBigDecimalListInternal(int columnIndex) {
-    return currRow().getBigDecimalListInternal(columnIndex);
   }
 
   @Override

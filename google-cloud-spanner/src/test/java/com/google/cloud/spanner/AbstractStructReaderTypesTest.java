@@ -29,7 +29,6 @@ import com.google.cloud.Timestamp;
 import com.google.common.base.Throwables;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -58,11 +57,6 @@ public class AbstractStructReaderTypesTest {
     @Override
     protected double getDoubleInternal(int columnIndex) {
       return 0;
-    }
-
-    @Override
-    protected BigDecimal getBigDecimalInternal(int columnIndex) {
-      return null;
     }
 
     @Override
@@ -127,11 +121,6 @@ public class AbstractStructReaderTypesTest {
 
     @Override
     protected List<Double> getDoubleListInternal(int columnIndex) {
-      return null;
-    }
-
-    @Override
-    protected List<BigDecimal> getBigDecimalListInternal(int columnIndex) {
       return null;
     }
 
@@ -201,13 +190,6 @@ public class AbstractStructReaderTypesTest {
             "getDoubleInternal",
             2.0,
             "getDouble",
-            Collections.singletonList("getValue")
-          },
-          {
-            Type.numeric(),
-            "getBigDecimalInternal",
-            BigDecimal.valueOf(21, 1),
-            "getBigDecimal",
             Collections.singletonList("getValue")
           },
           {
@@ -293,13 +275,6 @@ public class AbstractStructReaderTypesTest {
             Arrays.asList(2.0, 4.0),
             "getDoubleList",
             Arrays.asList("getDoubleArray", "getValue")
-          },
-          {
-            Type.array(Type.numeric()),
-            "getBigDecimalListInternal",
-            Arrays.asList(BigDecimal.valueOf(21, 1), BigDecimal.valueOf(41, 1)),
-            "getBigDecimalList",
-            Collections.singletonList("getValue")
           },
           {
             Type.array(Type.pgNumeric()),

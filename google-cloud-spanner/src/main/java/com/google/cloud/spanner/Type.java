@@ -29,7 +29,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.spanner.v1.TypeAnnotationCode;
 import com.google.spanner.v1.TypeCode;
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,7 +56,6 @@ public final class Type implements Serializable {
   private static final Type TYPE_BOOL = new Type(Code.BOOL, null, null);
   private static final Type TYPE_INT64 = new Type(Code.INT64, null, null);
   private static final Type TYPE_FLOAT64 = new Type(Code.FLOAT64, null, null);
-  private static final Type TYPE_NUMERIC = new Type(Code.NUMERIC, null, null);
   private static final Type TYPE_PG_NUMERIC = new Type(Code.PG_NUMERIC, null, null);
   private static final Type TYPE_STRING = new Type(Code.STRING, null, null);
   private static final Type TYPE_JSON = new Type(Code.JSON, null, null);
@@ -68,7 +66,6 @@ public final class Type implements Serializable {
   private static final Type TYPE_ARRAY_BOOL = new Type(Code.ARRAY, TYPE_BOOL, null);
   private static final Type TYPE_ARRAY_INT64 = new Type(Code.ARRAY, TYPE_INT64, null);
   private static final Type TYPE_ARRAY_FLOAT64 = new Type(Code.ARRAY, TYPE_FLOAT64, null);
-  private static final Type TYPE_ARRAY_NUMERIC = new Type(Code.ARRAY, TYPE_NUMERIC, null);
   private static final Type TYPE_ARRAY_PG_NUMERIC = new Type(Code.ARRAY, TYPE_PG_NUMERIC, null);
   private static final Type TYPE_ARRAY_STRING = new Type(Code.ARRAY, TYPE_STRING, null);
   private static final Type TYPE_ARRAY_JSON = new Type(Code.ARRAY, TYPE_JSON, null);
@@ -81,7 +78,6 @@ public final class Type implements Serializable {
       .put(Code.BOOL, TYPE_BOOL)
       .put(Code.INT64, TYPE_INT64)
       .put(Code.FLOAT64, TYPE_FLOAT64)
-      .put(Code.NUMERIC, TYPE_NUMERIC)
       .put(Code.PG_NUMERIC, TYPE_PG_NUMERIC)
       .put(Code.STRING, TYPE_STRING)
       .put(Code.JSON, TYPE_JSON)
@@ -95,7 +91,6 @@ public final class Type implements Serializable {
       .put(Code.BOOL, TYPE_ARRAY_BOOL)
       .put(Code.INT64, TYPE_ARRAY_INT64)
       .put(Code.FLOAT64, TYPE_ARRAY_FLOAT64)
-      .put(Code.NUMERIC, TYPE_ARRAY_NUMERIC)
       .put(Code.PG_NUMERIC, TYPE_ARRAY_PG_NUMERIC)
       .put(Code.STRING, TYPE_ARRAY_STRING)
       .put(Code.JSON, TYPE_ARRAY_JSON)
@@ -108,7 +103,7 @@ public final class Type implements Serializable {
   private static final Set<Class> supportedPrimitiveTypeClasses = new HashSet<>(
       Arrays.<Class>asList(Boolean.class, Integer.class,
           Long.class,
-          Float.class, Double.class, BigDecimal.class, String.class, ByteArray.class,
+          Float.class, Double.class, String.class, ByteArray.class,
           Timestamp.class, Date.class));
 
   /**
@@ -125,7 +120,7 @@ public final class Type implements Serializable {
   }
 
   private static final Set<Code> supportedPrimitiveTypeCodes = new HashSet<>(
-      Arrays.<Code>asList(Code.BOOL, Code.INT64, Code.FLOAT64, Code.NUMERIC, Code.PG_NUMERIC,
+      Arrays.<Code>asList(Code.BOOL, Code.INT64, Code.FLOAT64, Code.PG_NUMERIC,
           Code.STRING, Code.JSON, Code.PG_JSONB, Code.BYTES, Code.TIMESTAMP, Code.DATE));
 
   /**
@@ -167,11 +162,6 @@ public final class Type implements Serializable {
    */
   public static Type float64() {
     return TYPE_FLOAT64;
-  }
-
-  /** Returns the descriptor for the {@code NUMERIC} type. */
-  public static Type numeric() {
-    return TYPE_NUMERIC;
   }
 
   /**
@@ -230,8 +220,6 @@ public final class Type implements Serializable {
         return TYPE_ARRAY_INT64;
       case FLOAT64:
         return TYPE_ARRAY_FLOAT64;
-      case NUMERIC:
-        return TYPE_ARRAY_NUMERIC;
       case PG_NUMERIC:
         return TYPE_ARRAY_PG_NUMERIC;
       case STRING:
@@ -309,7 +297,6 @@ public final class Type implements Serializable {
     UNRECOGNIZED(TypeCode.UNRECOGNIZED),
     BOOL(TypeCode.BOOL),
     INT64(TypeCode.INT64),
-    NUMERIC(TypeCode.NUMERIC),
     PG_NUMERIC(TypeCode.NUMERIC, TypeAnnotationCode.PG_NUMERIC),
     FLOAT64(TypeCode.FLOAT64),
     STRING(TypeCode.STRING),

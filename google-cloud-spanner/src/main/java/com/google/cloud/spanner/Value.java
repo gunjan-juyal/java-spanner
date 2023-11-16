@@ -146,8 +146,6 @@ public abstract class Value implements Serializable {
           } else {
             throw new IllegalArgumentException("unsupported row type for BYTES");
           }
-        case NUMERIC:
-          return numeric((BigDecimal) value);
         case PG_NUMERIC:
           return pgNumeric((String) value);
         case STRING:
@@ -197,8 +195,6 @@ public abstract class Value implements Serializable {
           } else {
             throw new IllegalArgumentException("unsupported row type for BYTES array");
           }
-        case NUMERIC:
-          return numericArray((Iterable<BigDecimal>) values);
         case PG_NUMERIC:
           return pgNumericArray((Iterable<String>) values);
         case STRING:
@@ -261,41 +257,6 @@ public abstract class Value implements Serializable {
   public static Value float64(double v) {
     // return new Float64Impl(false, v);
     return new GenericValue<Double>(false, Type.float64(), Double.valueOf(v));
-  }
-
-  /**
-   * Returns a {@code NUMERIC} value. The valid value range for the whole component of the {@link
-   * BigDecimal} is from -9,999,999,999,999,999,999,999,999 to +9,999,999,999,999,999,999,999,999
-   * (both inclusive), i.e. the max length of the whole component is 29 digits. The max length of
-   * the fractional part is 9 digits. Trailing zeros in the fractional part are not considered and
-   * will be lost, as Cloud Spanner does not preserve the precision of a numeric value.
-   *
-   * <p>If you set a numeric value of a record to for example 0.10, Cloud Spanner will return this
-   * value as 0.1 in subsequent queries. Use {@link BigDecimal#stripTrailingZeros()} to compare
-   * inserted values with retrieved values if your application might insert numeric values with
-   * trailing zeros.
-   *
-   * @param v the value, which may be null
-   */
-  public static Value numeric(@Nullable BigDecimal v) {
-    if (v != null) {
-      // Cloud Spanner does not preserve the precision, so 0.1 is considered equal to 0.10.
-      BigDecimal test = v.stripTrailingZeros();
-      if (test.scale() > 9) {
-        throw SpannerExceptionFactory.newSpannerException(
-            ErrorCode.OUT_OF_RANGE,
-            String.format(
-                "Max scale for a numeric is 9. The requested numeric has scale %d", test.scale()));
-      }
-      if (test.precision() - test.scale() > 29) {
-        throw SpannerExceptionFactory.newSpannerException(
-            ErrorCode.OUT_OF_RANGE,
-            String.format(
-                "Max precision for the whole component of a numeric is 29. The requested numeric has a whole component with precision %d",
-                test.precision() - test.scale()));
-      }
-    }
-    return new NumericImpl(v == null, v);
   }
 
   /**
@@ -507,16 +468,6 @@ public abstract class Value implements Serializable {
    */
   public static Value float64Array(@Nullable Iterable<Double> v) {
     return float64ArrayFactory.create(v);
-  }
-
-  /**
-   * Returns an {@code ARRAY<NUMERIC>} value.
-   *
-   * @param v the source of element values. This may be {@code null} to produce a value for which
-   *     {@code isNull()} is {@code true}. Individual elements may also be {@code null}.
-   */
-  public static Value numericArray(@Nullable Iterable<BigDecimal> v) {
-    return new NumericArrayImpl(v == null, v == null ? null : immutableCopyOf(v));
   }
 
   /**
@@ -1031,7 +982,7 @@ public abstract class Value implements Serializable {
 
     @Override
     public BigDecimal getNumeric() {
-      throw defaultGetter(Type.numeric());
+      throw defaultGetter(Type.pgNumeric());  // TODO(gunjj@) Change back to Type.numeric() once that has been added back
     }
 
     @Override
@@ -1090,7 +1041,7 @@ public abstract class Value implements Serializable {
 
     @Override
     public List<BigDecimal> getNumericArray() {
-      throw defaultGetter(Type.array(Type.numeric()));
+      throw defaultGetter(Type.array(Type.pgNumeric()));  // TODO(gunjj@) Change back to Type.numeric() once that has been added back
     }
 
     @Override
@@ -1762,24 +1713,6 @@ public abstract class Value implements Serializable {
     }
   }
 
-  private static class NumericImpl extends AbstractObjectValue<BigDecimal> {
-
-    private NumericImpl(boolean isNull, BigDecimal value) {
-      super(isNull, Type.numeric(), value);
-    }
-
-    @Override
-    public BigDecimal getNumeric() {
-      checkNotNull();
-      return value;
-    }
-
-    @Override
-    void valueToString(StringBuilder b) {
-      b.append(value);
-    }
-  }
-
   private static class PgNumericImpl extends AbstractObjectValue<String> {
     private BigDecimal valueAsBigDecimal;
     private NumberFormatException bigDecimalConversionError;
@@ -2230,24 +2163,6 @@ public abstract class Value implements Serializable {
     }
   }
 
-  private static class NumericArrayImpl extends AbstractArrayValue<BigDecimal> {
-
-    private NumericArrayImpl(boolean isNull, @Nullable List<BigDecimal> values) {
-      super(isNull, Type.numeric(), values);
-    }
-
-    @Override
-    public List<BigDecimal> getNumericArray() {
-      checkNotNull();
-      return value;
-    }
-
-    @Override
-    void appendElement(StringBuilder b, BigDecimal element) {
-      b.append(element);
-    }
-  }
-
   private static class PgNumericArrayImpl extends AbstractArrayValue<String> {
 
     private List<BigDecimal> valuesAsBigDecimal;
@@ -2361,8 +2276,6 @@ public abstract class Value implements Serializable {
           return Value.bytes(value.getBytes(fieldIndex));
         case FLOAT64:
           return Value.float64(value.getDouble(fieldIndex));
-        case NUMERIC:
-          return Value.numeric(value.getBigDecimal(fieldIndex));
         case PG_NUMERIC:
           return Value.pgNumeric(value.getString(fieldIndex));
         case DATE:
@@ -2389,8 +2302,6 @@ public abstract class Value implements Serializable {
                 return Value.bytesArray(value.getBytesList(fieldIndex));
               case FLOAT64:
                 return Value.float64Array(value.getDoubleList(fieldIndex));
-              case NUMERIC:
-                return Value.numericArray(value.getBigDecimalList(fieldIndex));
               case PG_NUMERIC:
                 return Value.pgNumericArray(value.getStringList(fieldIndex));
               case DATE:

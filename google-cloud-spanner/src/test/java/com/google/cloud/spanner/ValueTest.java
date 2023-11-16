@@ -215,16 +215,6 @@ public class ValueTest {
   }
 
   @Test
-  public void numeric() {
-    Value v = Value.numeric(new BigDecimal("1.23"));
-    assertThat(v.getType()).isEqualTo(Type.numeric());
-    assertThat(v.isNull()).isFalse();
-    assertThat(v.getNumeric()).isEqualTo(BigDecimal.valueOf(123, 2));
-    assertThat(v.toString()).isEqualTo("1.23");
-    assertEquals("1.23", v.getAsString());
-  }
-
-  @Test
   public void pgNumeric() {
     final Value value = Value.pgNumeric("1234.5678");
     assertEquals(Type.pgNumeric(), value.getType());
@@ -246,164 +236,6 @@ public class ValueTest {
     assertEquals(Double.NaN, value.getFloat64(), 0.00001);
     assertEquals("NaN", value.toString());
     assertEquals("NaN", value.getAsString());
-  }
-
-  @Test
-  public void testNumericFormats() {
-    // The following is copied from the Numeric proto documentation.
-    // Encoded as `string`, in decimal format or scientific notation format.
-    // <br>Decimal format:
-    // <br>`[+-]Digits[.[Digits]]` or
-    // <br>`[+-][Digits].Digits`
-    //
-    // Scientific notation:
-    // <br>`[+-]Digits[.[Digits]][ExponentIndicator[+-]Digits]` or
-    // <br>`[+-][Digits].Digits[ExponentIndicator[+-]Digits]`
-    // <br>(ExponentIndicator is `"e"` or `"E"`)
-
-    // The following is copied from the BigDecimal#toString() documentation.
-    // <li>There is a one-to-one mapping between the distinguishable
-    // {@code BigDecimal} values and the result of this conversion.
-    // That is, every distinguishable {@code BigDecimal} value
-    // (unscaled value and scale) has a unique string representation
-    // as a result of using {@code toString}.  If that string
-    // representation is converted back to a {@code BigDecimal} using
-    // the {@link #BigDecimal(String)} constructor, then the original
-    // value will be recovered.
-    //
-    // <li>The string produced for a given number is always the same;
-    // it is not affected by locale.  This means that it can be used
-    // as a canonical string representation for exchanging decimal
-    // data, or as a key for a Hashtable, etc.  Locale-sensitive
-    // number formatting and parsing is handled by the {@link
-    // java.text.NumberFormat} class and its subclasses.
-
-    // Test that BigDecimal supports all formats that are supported by Cloud Spanner.
-    assertThat(new BigDecimal("1").toString()).isEqualTo("1");
-    assertThat(new BigDecimal("01").toString()).isEqualTo("1");
-    assertThat(new BigDecimal("1.").toString()).isEqualTo("1");
-    assertThat(new BigDecimal("+1").toString()).isEqualTo("1");
-    assertThat(new BigDecimal("+1.").toString()).isEqualTo("1");
-    assertThat(new BigDecimal("-1").toString()).isEqualTo("-1");
-    assertThat(new BigDecimal("-1.").toString()).isEqualTo("-1");
-
-    assertThat(new BigDecimal("0.1").toString()).isEqualTo("0.1");
-    assertThat(new BigDecimal("00.1").toString()).isEqualTo("0.1");
-    assertThat(new BigDecimal(".1").toString()).isEqualTo("0.1");
-    assertThat(new BigDecimal("+0.1").toString()).isEqualTo("0.1");
-    assertThat(new BigDecimal("+.1").toString()).isEqualTo("0.1");
-    assertThat(new BigDecimal("-0.1").toString()).isEqualTo("-0.1");
-    assertThat(new BigDecimal("-.1").toString()).isEqualTo("-0.1");
-
-    assertThat(new BigDecimal("1E+1").toString()).isEqualTo("1E+1");
-    assertThat(new BigDecimal("1e+1").toString()).isEqualTo("1E+1");
-    assertThat(new BigDecimal("1E1").toString()).isEqualTo("1E+1");
-    assertThat(new BigDecimal("1e1").toString()).isEqualTo("1E+1");
-    assertThat(new BigDecimal("01E+1").toString()).isEqualTo("1E+1");
-    assertThat(new BigDecimal("01e+1").toString()).isEqualTo("1E+1");
-    assertThat(new BigDecimal("01E1").toString()).isEqualTo("1E+1");
-    assertThat(new BigDecimal("01e1").toString()).isEqualTo("1E+1");
-    assertThat(new BigDecimal("1E+01").toString()).isEqualTo("1E+1");
-    assertThat(new BigDecimal("1e+01").toString()).isEqualTo("1E+1");
-    assertThat(new BigDecimal("1E01").toString()).isEqualTo("1E+1");
-    assertThat(new BigDecimal("1e01").toString()).isEqualTo("1E+1");
-
-    assertThat(new BigDecimal("1E-1").toString()).isEqualTo("0.1");
-    assertThat(new BigDecimal("1e-1").toString()).isEqualTo("0.1");
-    assertThat(new BigDecimal("01E-1").toString()).isEqualTo("0.1");
-    assertThat(new BigDecimal("01e-1").toString()).isEqualTo("0.1");
-    assertThat(new BigDecimal("1E-01").toString()).isEqualTo("0.1");
-    assertThat(new BigDecimal("1e-01").toString()).isEqualTo("0.1");
-  }
-
-  @Test
-  public void numericPrecisionAndScale() {
-    for (long s : new long[] {1L, -1L}) {
-      BigDecimal sign = new BigDecimal(s);
-      assertThat(Value.numeric(new BigDecimal(Strings.repeat("9", 29)).multiply(sign)).toString())
-          .isEqualTo((s == -1L ? "-" : "") + Strings.repeat("9", 29));
-      SpannerException e1 =
-          assertThrows(
-              SpannerException.class,
-              () -> Value.numeric(new BigDecimal(Strings.repeat("9", 30)).multiply(sign)));
-      assertThat(e1.getErrorCode()).isEqualTo(ErrorCode.OUT_OF_RANGE);
-      SpannerException e2 =
-          assertThrows(
-              SpannerException.class,
-              () -> Value.numeric(new BigDecimal("1" + Strings.repeat("0", 29)).multiply(sign)));
-      assertThat(e2.getErrorCode()).isEqualTo(ErrorCode.OUT_OF_RANGE);
-
-      assertThat(
-              Value.numeric(new BigDecimal("0." + Strings.repeat("9", 9)).multiply(sign))
-                  .toString())
-          .isEqualTo((s == -1L ? "-" : "") + "0." + Strings.repeat("9", 9));
-      assertThat(
-              Value.numeric(new BigDecimal("0.1" + Strings.repeat("0", 8)).multiply(sign))
-                  .toString())
-          .isEqualTo((s == -1L ? "-" : "") + "0.1" + Strings.repeat("0", 8));
-      // Cloud Spanner does not store precision and considers 0.1 to be equal to 0.10.
-      // 0.100000000000000000000000000 is therefore also a valid value, as it will be capped to 0.1.
-      assertThat(
-              Value.numeric(new BigDecimal("0.1" + Strings.repeat("0", 20)).multiply(sign))
-                  .toString())
-          .isEqualTo((s == -1L ? "-" : "") + "0.1" + Strings.repeat("0", 20));
-      SpannerException e3 =
-          assertThrows(
-              SpannerException.class,
-              () -> Value.numeric(new BigDecimal("0." + Strings.repeat("9", 10)).multiply(sign)));
-      assertThat(e3.getErrorCode()).isEqualTo(ErrorCode.OUT_OF_RANGE);
-
-      assertThat(
-              Value.numeric(
-                      new BigDecimal(Strings.repeat("9", 29) + "." + Strings.repeat("9", 9))
-                          .multiply(sign))
-                  .toString())
-          .isEqualTo(
-              (s == -1L ? "-" : "") + Strings.repeat("9", 29) + "." + Strings.repeat("9", 9));
-
-      SpannerException e4 =
-          assertThrows(
-              SpannerException.class,
-              () ->
-                  Value.numeric(
-                      new BigDecimal(Strings.repeat("9", 30) + "." + Strings.repeat("9", 9))
-                          .multiply(sign)));
-      assertThat(e4.getErrorCode()).isEqualTo(ErrorCode.OUT_OF_RANGE);
-      SpannerException e5 =
-          assertThrows(
-              SpannerException.class,
-              () ->
-                  Value.numeric(
-                      new BigDecimal("1" + Strings.repeat("0", 29) + "." + Strings.repeat("9", 9))
-                          .multiply(sign)));
-      assertThat(e5.getErrorCode()).isEqualTo(ErrorCode.OUT_OF_RANGE);
-
-      SpannerException e6 =
-          assertThrows(
-              SpannerException.class,
-              () ->
-                  Value.numeric(
-                      new BigDecimal(Strings.repeat("9", 29) + "." + Strings.repeat("9", 10))
-                          .multiply(sign)));
-      assertThat(e6.getErrorCode()).isEqualTo(ErrorCode.OUT_OF_RANGE);
-      SpannerException e7 =
-          assertThrows(
-              SpannerException.class,
-              () -> Value.numeric(new BigDecimal("1." + Strings.repeat("9", 10)).multiply(sign)));
-      assertThat(e7.getErrorCode()).isEqualTo(ErrorCode.OUT_OF_RANGE);
-    }
-  }
-
-  @Test
-  public void numericNull() {
-    Value v = Value.numeric(null);
-    assertThat(v.getType()).isEqualTo(Type.numeric());
-    assertThat(v.isNull()).isTrue();
-    assertThat(v.toString()).isEqualTo(NULL_STRING);
-
-    IllegalStateException e = assertThrows(IllegalStateException.class, v::getNumeric);
-    assertThat(e.getMessage()).contains("null value");
-    assertEquals("NULL", v.getAsString());
   }
 
   @Test
@@ -430,7 +262,6 @@ public class ValueTest {
     assertEquals("INVALID", value.toString());
 
     assertEquals("INVALID", value.getString());
-    assertThrows(NumberFormatException.class, value::getNumeric);
     assertThrows(NumberFormatException.class, value::getFloat64);
     assertEquals("INVALID", value.getAsString());
   }
@@ -866,18 +697,6 @@ public class ValueTest {
   }
 
   @Test
-  public void numericArray() {
-    Value v =
-        Value.numericArray(Arrays.asList(BigDecimal.valueOf(1, 1), null, BigDecimal.valueOf(3, 1)));
-    assertThat(v.isNull()).isFalse();
-    assertThat(v.getNumericArray())
-        .containsExactly(new BigDecimal("0.1"), null, new BigDecimal("0.3"))
-        .inOrder();
-    assertThat(v.toString()).isEqualTo("[0.1,NULL,0.3]");
-    assertEquals("[0.1,NULL,0.3]", v.getAsString());
-  }
-
-  @Test
   public void pgNumericArray() {
     final Value value = Value.pgNumericArray(Arrays.asList("1.23", null, "1.24"));
     assertFalse("pgNumericArray value should not be null", value.isNull());
@@ -906,17 +725,6 @@ public class ValueTest {
   }
 
   @Test
-  public void numericArrayNull() {
-    Value v = Value.numericArray(null);
-    assertThat(v.isNull()).isTrue();
-    assertThat(v.toString()).isEqualTo(NULL_STRING);
-
-    IllegalStateException e = assertThrows(IllegalStateException.class, v::getNumericArray);
-    assertThat(e.getMessage()).contains("null value");
-    assertEquals("NULL", v.getAsString());
-  }
-
-  @Test
   public void pgNumericArrayNull() {
     final Value value = Value.pgNumericArray(null);
     assertTrue("pgNumericArray value should be null", value.isNull());
@@ -932,14 +740,6 @@ public class ValueTest {
         assertThrows(IllegalStateException.class, value::getFloat64Array);
     assertTrue("exception should mention value is null", e3.getMessage().contains("null value"));
     assertEquals("NULL", value.getAsString());
-  }
-
-  @Test
-  public void numericArrayTryGetInt64Array() {
-    Value value = Value.numericArray(Collections.singletonList(BigDecimal.valueOf(1, 1)));
-
-    IllegalStateException e = assertThrows(IllegalStateException.class, value::getInt64Array);
-    assertThat(e.getMessage()).contains("Expected: ARRAY<INT64> actual: ARRAY<NUMERIC>");
   }
 
   @Test
@@ -1341,13 +1141,6 @@ public class ValueTest {
         Value.bytes(null).toProto());
 
     assertEquals(
-        com.google.protobuf.Value.newBuilder().setStringValue("3.14").build(),
-        Value.numeric(new BigDecimal("3.14")).toProto());
-    assertEquals(
-        com.google.protobuf.Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build(),
-        Value.numeric(null).toProto());
-
-    assertEquals(
         com.google.protobuf.Value.newBuilder().setStringValue("1234.5678").build(),
         Value.pgNumeric("1234.5678").toProto());
     assertEquals(
@@ -1457,7 +1250,7 @@ public class ValueTest {
                                 .setNullValue(NullValue.NULL_VALUE)
                                 .build())))
             .build(),
-        Value.numericArray(Arrays.asList(new BigDecimal("3.14"), null)).toProto());
+        Value.pgNumericArray(Arrays.asList(new String("3.14"), null)).toProto());  // TODO(gunjj@) Change back to Type.numericArray() once that has been added back
     assertEquals(
         com.google.protobuf.Value.newBuilder()
             .setListValue(
@@ -1645,7 +1438,7 @@ public class ValueTest {
             .build(),
         Value.struct(
                 Struct.newBuilder()
-                    .add(Value.numericArray(Arrays.asList(new BigDecimal("3.14"), null)))
+                    .add(Value.pgNumericArray(Arrays.asList(new String("3.14"), null)))  // TODO(gunjj@) Change back to Type.numeric() once that has been added back
                     .build())
             .toProto());
     assertEquals(
@@ -1760,11 +1553,6 @@ public class ValueTest {
     tester.addEqualityGroup(Value.float64(4.56));
     tester.addEqualityGroup(Value.float64(null));
 
-    tester.addEqualityGroup(
-        Value.numeric(BigDecimal.valueOf(123, 2)), Value.numeric(new BigDecimal("1.23")));
-    tester.addEqualityGroup(Value.numeric(BigDecimal.valueOf(456, 2)));
-    tester.addEqualityGroup(Value.numeric(null));
-
     tester.addEqualityGroup(Value.pgNumeric("1234.5678"), Value.pgNumeric("1234.5678"));
     tester.addEqualityGroup(Value.pgNumeric("NaN"), Value.pgNumeric(Value.NAN));
     tester.addEqualityGroup(Value.pgNumeric("8765.4321"));
@@ -1831,12 +1619,6 @@ public class ValueTest {
     tester.addEqualityGroup(Value.float64Array((Iterable<Double>) null));
 
     tester.addEqualityGroup(
-        Value.numericArray(Arrays.asList(BigDecimal.valueOf(1, 1), BigDecimal.valueOf(2, 1))));
-    tester.addEqualityGroup(
-        Value.numericArray(Collections.singletonList(BigDecimal.valueOf(3, 1))));
-    tester.addEqualityGroup(Value.numericArray(null));
-
-    tester.addEqualityGroup(
         Value.pgNumericArray(Arrays.asList("1.23", null, Value.NAN)),
         Value.pgNumericArray(Arrays.asList("1.23", null, "NaN")));
     tester.addEqualityGroup(Value.pgNumericArray(Collections.singletonList("1.25")));
@@ -1898,10 +1680,6 @@ public class ValueTest {
     assertEquals(String.valueOf(Double.MIN_VALUE), Value.float64(Double.MIN_VALUE).getAsString());
     assertEquals(String.valueOf(Double.MAX_VALUE), Value.float64(Double.MAX_VALUE).getAsString());
 
-    assertEquals("3.14", Value.numeric(new BigDecimal("3.14")).getAsString());
-    assertEquals(
-        "123456789.123456789", Value.numeric(new BigDecimal("123456789.123456789")).getAsString());
-
     assertEquals("3.14", Value.pgNumeric("3.14").getAsString());
     assertEquals("123456789.123456789", Value.pgNumeric("123456789.123456789").getAsString());
     assertEquals("NaN", Value.pgNumeric("NaN").getAsString());
@@ -1939,9 +1717,6 @@ public class ValueTest {
     reserializeAndAssert(Value.float64(1.23));
     reserializeAndAssert(Value.float64(null));
 
-    reserializeAndAssert(Value.numeric(BigDecimal.valueOf(123, 2)));
-    reserializeAndAssert(Value.numeric(null));
-
     reserializeAndAssert(Value.pgNumeric("1.23"));
     reserializeAndAssert(Value.pgNumeric(Value.NAN));
     reserializeAndAssert(Value.pgNumeric(null));
@@ -1976,15 +1751,6 @@ public class ValueTest {
     reserializeAndAssert(Value.float64Array(new double[] {.1, .2}));
     reserializeAndAssert(Value.float64Array(BrokenSerializationList.of(.1, .2, .3)));
     reserializeAndAssert(Value.float64Array((Iterable<Double>) null));
-
-    reserializeAndAssert(
-        Value.numericArray(
-            Arrays.asList(BigDecimal.valueOf(1, 1), null, BigDecimal.valueOf(2, 1))));
-    reserializeAndAssert(
-        Value.numericArray(
-            BrokenSerializationList.of(
-                BigDecimal.valueOf(1, 1), BigDecimal.valueOf(2, 1), BigDecimal.valueOf(3, 1))));
-    reserializeAndAssert(Value.numericArray(null));
 
     reserializeAndAssert(Value.pgNumericArray(Arrays.asList("1.23", null, Value.NAN)));
     reserializeAndAssert(

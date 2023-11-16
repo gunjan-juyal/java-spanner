@@ -347,7 +347,7 @@
     <className>com/google/cloud/spanner/connection/Connection</className>
     <method>void rollbackToSavepoint(java.lang.String)</method>
   </difference>
-  
+
   <!-- Delay start transaction -->
   <difference>
     <differenceType>7012</differenceType>

@@ -19,7 +19,6 @@ package com.google.cloud.spanner;
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
-import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -132,22 +131,7 @@ public interface StructReader {
    */
   double getDouble(String columnName);
 
-  /**
-   * @param columnIndex index of the column
-   * @return the value of a non-{@code NULL} column with type {@link Type#numeric()}.
-   */
-  BigDecimal getBigDecimal(int columnIndex);
-
-  /**
-   * @param columnName name of the column
-   * @return the value of a non-{@code NULL} column with type {@link Type#numeric()}.
-   */
-  BigDecimal getBigDecimal(String columnName);
-
-  /**
-   * @param columnIndex index of the column
-   * @return the value of a non-{@code NULL} column with type {@link Type#string()}.
-   */
+  /** Returns the value of a non-{@code NULL} column with type {@link Type#string()}. */
   String getString(int columnIndex);
 
   /**
@@ -336,28 +320,7 @@ public interface StructReader {
    */
   List<Double> getDoubleList(String columnName);
 
-  /**
-   * @param columnIndex index of the column
-   * @return the value of a non-{@code NULL} column with type {@code Type.array(Type.numeric())} The
-   *     list returned by this method is lazily constructed. Create a copy of it if you intend to
-   *     access each element in the list multiple times.
-   */
-  List<BigDecimal> getBigDecimalList(int columnIndex);
-
-  /**
-   * @param columnName name of the column
-   * @return the value of a non-{@code NULL} column with type {@code Type.array(Type.numeric())} The
-   *     list returned by this method is lazily constructed. Create a copy of it if you intend to
-   *     access each element in the list multiple times.
-   */
-  List<BigDecimal> getBigDecimalList(String columnName);
-
-  /**
-   * @param columnIndex index of the column
-   * @return the value of a non-{@code NULL} column with type {@code Type.array(Type.string())}. The
-   *     list returned by this method is lazily constructed. Create a copy of it if you intend to
-   *     access each element in the list multiple times.
-   */
+  /** Returns the value of a non-{@code NULL} column with type {@code Type.array(Type.string())}. */
   List<String> getStringList(int columnIndex);
 
   /**

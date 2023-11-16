@@ -35,7 +35,6 @@ public final class TypeHelper {
         .put(Code.BYTES, value::getBytes)
         .put(Code.DATE, value::getDate)
         .put(Code.FLOAT64, value::getFloat64)
-        .put(Code.NUMERIC, value::getNumeric)
         .put(Code.PG_NUMERIC, value::getString)
         .put(Code.INT64, value::getInt64)
         .put(Code.STRING, value::getString)
@@ -110,8 +109,6 @@ public final class TypeHelper {
         return row.getDateList(columnIndex);
       case FLOAT64:
         return row.getDoubleList(columnIndex);
-      case NUMERIC:
-        return row.getBigDecimalList(columnIndex);
       case PG_NUMERIC:
       case STRING:
         return row.getStringList(columnIndex);

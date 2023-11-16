@@ -40,7 +40,6 @@ import com.google.cloud.spanner.Value;
 import com.google.cloud.spanner.connection.ConnectionOptions;
 import com.google.cloud.spanner.testing.EmulatorSpannerHelper;
 import com.google.common.primitives.Doubles;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -168,8 +167,6 @@ public class ITResultSetGetValue {
                 .to(10L)
                 .set("float64")
                 .to(20D)
-                .set("numeric")
-                .to(new BigDecimal("30"))
                 .set("string")
                 .to("stringValue")
                 .set("bytes")
@@ -186,8 +183,6 @@ public class ITResultSetGetValue {
                 .toInt64Array(new long[] {100L, 200L})
                 .set("float64Array")
                 .toFloat64Array(new double[] {1000D, 2000D})
-                .set("numericArray")
-                .toNumericArray(Arrays.asList(new BigDecimal("10000"), new BigDecimal("20000")))
                 .set("stringArray")
                 .toStringArray(Arrays.asList("string1", "string2"))
                 .set("bytesArray")
@@ -215,7 +210,6 @@ public class ITResultSetGetValue {
       assertEquals(Value.bool(true), resultSet.getValue("bool"));
       assertEquals(Value.int64(10L), resultSet.getValue("int64"));
       assertEquals(20D, resultSet.getValue("float64").getFloat64(), 1e-15);
-      assertEquals(Value.numeric(new BigDecimal("30")), resultSet.getValue("numeric"));
       assertEquals(Value.string("stringValue"), resultSet.getValue("string"));
       assertEquals(Value.bytes(ByteArray.copyFrom("bytesValue")), resultSet.getValue("bytes"));
       assertEquals(
@@ -228,9 +222,6 @@ public class ITResultSetGetValue {
           new double[] {1000D, 2000D},
           Doubles.toArray(resultSet.getValue("float64Array").getFloat64Array()),
           1e-15);
-      assertEquals(
-          Value.numericArray(Arrays.asList(new BigDecimal("10000"), new BigDecimal("20000"))),
-          resultSet.getValue("numericArray"));
       assertEquals(
           Value.stringArray(Arrays.asList("string1", "string2")),
           resultSet.getValue("stringArray"));
@@ -267,8 +258,6 @@ public class ITResultSetGetValue {
                 .to(10L)
                 .set("float64")
                 .to(20D)
-                .set("numeric")
-                .to(new BigDecimal("30"))
                 .set("string")
                 .to("stringValue")
                 .set("bytes")
@@ -283,8 +272,6 @@ public class ITResultSetGetValue {
                 .toInt64Array(new long[] {100L, 200L})
                 .set("float64Array")
                 .toFloat64Array(new double[] {1000D, 2000D})
-                .set("numericArray")
-                .toNumericArray(Arrays.asList(new BigDecimal("10000"), new BigDecimal("20000")))
                 .set("stringArray")
                 .toStringArray(Arrays.asList("string1", "string2"))
                 .set("bytesArray")
@@ -477,8 +464,6 @@ public class ITResultSetGetValue {
                 .toInt64Array(Arrays.asList(null, 2L))
                 .set("float64Array")
                 .toFloat64Array(Arrays.asList(null, 10D))
-                .set("numericArray")
-                .toNumericArray(Arrays.asList(new BigDecimal("10000"), null))
                 .set("stringArray")
                 .toStringArray(Arrays.asList(null, "string2"))
                 .set("bytesArray")
@@ -502,9 +487,6 @@ public class ITResultSetGetValue {
       assertEquals(Value.int64Array(Arrays.asList(null, 2L)), resultSet.getValue("int64Array"));
       assertNull(resultSet.getValue("float64Array").getFloat64Array().get(0));
       assertEquals(10D, resultSet.getValue("float64Array").getFloat64Array().get(1), DELTA);
-      assertEquals(
-          Value.numericArray(Arrays.asList(new BigDecimal("10000"), null)),
-          resultSet.getValue("numericArray"));
       assertEquals(
           Value.stringArray(Arrays.asList(null, "string2")), resultSet.getValue("stringArray"));
       assertEquals(
@@ -536,8 +518,6 @@ public class ITResultSetGetValue {
                 .toInt64Array(Arrays.asList(null, 2L))
                 .set("float64Array")
                 .toFloat64Array(Arrays.asList(null, 10D))
-                .set("numericArray")
-                .toNumericArray(Arrays.asList(new BigDecimal("10000"), null))
                 .set("stringArray")
                 .toStringArray(Arrays.asList(null, "string2"))
                 .set("bytesArray")
@@ -618,7 +598,6 @@ public class ITResultSetGetValue {
 
       assertEquals(Value.bool(true), resultSet.getValue("bool"));
       assertEquals(Value.int64(1L), resultSet.getValue("int64"));
-      assertEquals(Value.numeric(new BigDecimal("100")), resultSet.getValue("numeric"));
       assertEquals(Value.string("stringValue"), resultSet.getValue("string"));
       assertEquals(Value.bytes(ByteArray.copyFrom("bytesValue")), resultSet.getValue("bytes"));
       assertEquals(
@@ -626,9 +605,6 @@ public class ITResultSetGetValue {
       assertEquals(Value.date(Date.fromYearMonthDay(2021, 2, 3)), resultSet.getValue("date"));
       assertEquals(Value.boolArray(new boolean[] {false, true}), resultSet.getValue("boolArray"));
       assertEquals(Value.int64Array(new long[] {1L, 2L}), resultSet.getValue("int64Array"));
-      assertEquals(
-          Value.numericArray(Arrays.asList(new BigDecimal("100"), new BigDecimal("200"))),
-          resultSet.getValue("numericArray"));
       assertEquals(
           Value.stringArray(Arrays.asList("string1", "string2")),
           resultSet.getValue("stringArray"));
@@ -650,14 +626,12 @@ public class ITResultSetGetValue {
               Type.struct(
                   StructField.of("structBool", Type.bool()),
                   StructField.of("structInt64", Type.int64()),
-                  StructField.of("structNumeric", Type.numeric()),
                   StructField.of("structString", Type.string()),
                   StructField.of("structBytes", Type.bytes()),
                   StructField.of("structTimestamp", Type.timestamp()),
                   StructField.of("structDate", Type.date()),
                   StructField.of("structBoolArray", Type.array(Type.bool())),
                   StructField.of("structInt64Array", Type.array(Type.int64())),
-                  StructField.of("structNumericArray", Type.array(Type.numeric())),
                   StructField.of("structStringArray", Type.array(Type.string())),
                   StructField.of("structBytesArray", Type.array(Type.bytes())),
                   StructField.of("structTimestampArray", Type.array(Type.timestamp())),
@@ -668,8 +642,6 @@ public class ITResultSetGetValue {
                       .to(Value.bool(true))
                       .set("structInt64")
                       .to(Value.int64(1L))
-                      .set("structNumeric")
-                      .to(new BigDecimal("100"))
                       .set("structString")
                       .to("stringValue")
                       .set("structBytes")
@@ -682,8 +654,6 @@ public class ITResultSetGetValue {
                       .toBoolArray(new boolean[] {false, true})
                       .set("structInt64Array")
                       .toInt64Array(new long[] {1L, 2L})
-                      .set("structNumericArray")
-                      .toNumericArray(Arrays.asList(new BigDecimal("100"), new BigDecimal("200")))
                       .set("structStringArray")
                       .toStringArray(Arrays.asList("string1", "string2"))
                       .set("structBytesArray")

@@ -29,7 +29,6 @@ import com.google.common.primitives.Booleans;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Longs;
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -183,11 +182,6 @@ public abstract class Struct extends AbstractStructReader implements Serializabl
     }
 
     @Override
-    protected BigDecimal getBigDecimalInternal(int columnIndex) {
-      return values.get(columnIndex).getNumeric();
-    }
-
-    @Override
     protected String getStringInternal(int columnIndex) {
       return values.get(columnIndex).getString();
     }
@@ -255,11 +249,6 @@ public abstract class Struct extends AbstractStructReader implements Serializabl
     @Override
     protected List<Double> getDoubleListInternal(int columnIndex) {
       return values.get(columnIndex).getFloat64Array();
-    }
-
-    @Override
-    protected List<BigDecimal> getBigDecimalListInternal(int columnIndex) {
-      return values.get(columnIndex).getNumericArray();
     }
 
     @Override
@@ -357,10 +346,6 @@ public abstract class Struct extends AbstractStructReader implements Serializabl
         return getLongInternal(columnIndex);
       case FLOAT64:
         return getDoubleInternal(columnIndex);
-      case NUMERIC:
-        return getBigDecimalInternal(columnIndex);
-      case PG_NUMERIC:
-        return getStringInternal(columnIndex);
       case STRING:
         return getStringInternal(columnIndex);
       case JSON:
@@ -383,10 +368,6 @@ public abstract class Struct extends AbstractStructReader implements Serializabl
             return getLongListInternal(columnIndex);
           case FLOAT64:
             return getDoubleListInternal(columnIndex);
-          case NUMERIC:
-            return getBigDecimalListInternal(columnIndex);
-          case PG_NUMERIC:
-            return getStringListInternal(columnIndex);
           case STRING:
             return getStringListInternal(columnIndex);
           case JSON:

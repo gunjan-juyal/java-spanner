@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
-import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
@@ -39,8 +38,6 @@ public abstract class AbstractStructReader implements StructReader {
   protected abstract long getLongInternal(int columnIndex);
 
   protected abstract double getDoubleInternal(int columnIndex);
-
-  protected abstract BigDecimal getBigDecimalInternal(int columnIndex);
 
   protected abstract String getStringInternal(int columnIndex);
 
@@ -73,8 +70,6 @@ public abstract class AbstractStructReader implements StructReader {
   protected abstract double[] getDoubleArrayInternal(int columnIndex);
 
   protected abstract List<Double> getDoubleListInternal(int columnIndex);
-
-  protected abstract List<BigDecimal> getBigDecimalListInternal(int columnIndex);
 
   protected abstract List<String> getStringListInternal(int columnIndex);
 
@@ -151,19 +146,6 @@ public abstract class AbstractStructReader implements StructReader {
     int columnIndex = getColumnIndex(columnName);
     checkNonNullOfType(columnIndex, Type.float64(), columnName);
     return getDoubleInternal(columnIndex);
-  }
-
-  @Override
-  public BigDecimal getBigDecimal(int columnIndex) {
-    checkNonNullOfType(columnIndex, Type.numeric(), columnIndex);
-    return getBigDecimalInternal(columnIndex);
-  }
-
-  @Override
-  public BigDecimal getBigDecimal(String columnName) {
-    int columnIndex = getColumnIndex(columnName);
-    checkNonNullOfType(columnIndex, Type.numeric(), columnName);
-    return getBigDecimalInternal(columnIndex);
   }
 
   @Override
@@ -336,19 +318,6 @@ public abstract class AbstractStructReader implements StructReader {
     int columnIndex = getColumnIndex(columnName);
     checkNonNullOfType(columnIndex, Type.array(Type.float64()), columnName);
     return getDoubleListInternal(columnIndex);
-  }
-
-  @Override
-  public List<BigDecimal> getBigDecimalList(int columnIndex) {
-    checkNonNullOfType(columnIndex, Type.array(Type.numeric()), columnIndex);
-    return getBigDecimalListInternal(columnIndex);
-  }
-
-  @Override
-  public List<BigDecimal> getBigDecimalList(String columnName) {
-    int columnIndex = getColumnIndex(columnName);
-    checkNonNullOfType(columnIndex, Type.array(Type.numeric()), columnName);
-    return getBigDecimalListInternal(columnIndex);
   }
 
   @Override
