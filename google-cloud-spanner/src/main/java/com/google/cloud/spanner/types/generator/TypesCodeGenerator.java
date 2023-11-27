@@ -16,26 +16,30 @@
 
 package com.google.cloud.spanner.types.generator;
 
+import com.google.cloud.spanner.types.generator.TemplatedCode.ParsedFileChunks;
+import com.google.cloud.spanner.types.generator.TemplatedCode.ParsedFileChunks.Chunk;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.text.ParseException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Standalone utility to auto-generate boilerplate necessary to add a data type to the library.
  * Usage: Modify the input variables as per the new data type, run generateAndReplaceCode() and the
- *   utility would replace the source code in the local workspace. It needs to be reviewed, cleaned-
- *   up, completed with non-auto-generatable code and submitted for review by a human reviewer.
+ * utility would replace the source code in the local workspace. It needs to be reviewed, cleaned-
+ * up, completed with non-auto-generatable code and submitted for review by a human reviewer.
  *
- *   The code replacement happens based on special tags in comments in the source files, so the
- *   placeholder comments must not be removed during review of auto-generated code.
+ * The code replacement happens based on special tags in comments in the source files, so the
+ * placeholder comments must not be removed during review of auto-generated code.
  *
- *   It is recommended to commit the auto-generatable code separately from human-generated code for
- *   easier identification during the review cycle.
+ * It is recommended to commit the auto-generatable code separately from human-generated code for
+ * easier identification during the review cycle.
  */
 public class TypesCodeGenerator {
 
@@ -46,6 +50,7 @@ public class TypesCodeGenerator {
   public void generateAndReplaceCode() {
     // 1. Generate code based from the template and runtime variables
     String templatedCode = null;
+    System.out.println("Generating templatized code");
     try {
       // Create data model. TODO(gunjj@) Move these to a config file. Current code runs only for a
       //  single type; consider looping over all existing generatble-types to add them together, in
@@ -63,24 +68,47 @@ public class TypesCodeGenerator {
       System.err.println("Error during auto-generation template processing: " + e.getMessage());
       throw new RuntimeException(e);
     }
+    System.out.println("Generated template code: ");
+    System.out.println(templatedCode);
 
     // 2.1. Tokenize the generated code by start/end autogen section tokens. For each section:
-    new TemplatedCode().parseTemplatedCode(templatedCode);
+    List<TemplatedCode.ParsedFileChunks> chunks = null;
+    System.out.println("Parsing generated code");
+    try {
+      chunks = new TemplatedCode().parseTemplatedCode(templatedCode);
+    } catch (ParseException e) {
+      System.err.println("Error trying to parse generated code");
+      throw new RuntimeException(e);
+    }
+    System.out.println("Parsed objects from template code");
 
+    testPrintParsedChunks(chunks);
+
+    System.out.println("TODO: Replacing tags in source code with generated code");
     // 2.2. Lookup the file name, try open file in the source path. Fail with error if not available
     // 2.3. Tokenize chunks within the section. For each chunk, search for comment-boundaries within the
     //  source file, and replace the contents with autogen content
 
-    System.out.println(templatedCode);
   }
 
-  private String generateTemplatedCode(String templateName, Map<String, Object> data) throws IOException, TemplateException {
+  private void testPrintParsedChunks(List<ParsedFileChunks> chunks) {
+    for (ParsedFileChunks fileChunks : chunks) {
+      System.out.println("File: " + fileChunks.getTargetFile());
+      for (Chunk chunk : fileChunks.getChunks()) {
+        System.out.format("ChunkId: %s\nChunk Body: %s\n\n", chunk.getChunkId(), chunk.getChunkText());
+      }
+    }
+  }
+
+  private String generateTemplatedCode(String templateName, Map<String, Object> data)
+      throws IOException, TemplateException {
     // Create a configuration object
     Configuration cfg = new Configuration(Configuration.VERSION_2_3_32);
 
     // Load template from file
     cfg.setClassForTemplateLoading(TypesCodeGenerator.class, ".");
     Template template = cfg.getTemplate(templateName);
+    TypesCodeGenerator.class.getResource("template.ftl");
 
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     OutputStreamWriter out = new OutputStreamWriter(bos);
