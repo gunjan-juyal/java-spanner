@@ -44,10 +44,16 @@ import java.util.Map;
 public class TypesCodeGenerator {
 
   public static void main(String[] args) throws IOException, TemplateException {
-    new TypesCodeGenerator().generateAndReplaceCode();
+    // String packageRootDirPath = "/Users/gunjj/workspace/playground/github/java-spanner/google-cloud-spanner/src/main/java";
+    if (args.length < 1 || args[0].trim().isEmpty()) {
+      throw new IllegalArgumentException(
+          "Expecting source-code package root directory as input argument, found none");
+    }
+    System.out.format("Source-code package root directory for making code-replacements: \n", args[0]);
+    new TypesCodeGenerator().generateAndReplaceCode(args[0].trim());
   }
 
-  public void generateAndReplaceCode() {
+  public void generateAndReplaceCode(final String packageRootDirPath) {
     // 1. Generate code based from the template and runtime variables
     String templatedCode = null;
     System.out.println("Generating templatized code");
@@ -72,32 +78,37 @@ public class TypesCodeGenerator {
     System.out.println(templatedCode);
 
     // 2.1. Tokenize the generated code by start/end autogen section tokens. For each section:
-    List<TemplatedCode.ParsedFileChunks> chunks = null;
+    TemplatedCode template = new TemplatedCode();
+    List<TemplatedCode.ParsedFileChunks> templateChunks = null;
     System.out.println("Parsing generated code");
     try {
-      chunks = new TemplatedCode().parseTemplatedCode(templatedCode);
+      templateChunks = template.parseTemplatedCode(templatedCode);
     } catch (ParseException e) {
       System.err.println("Error trying to parse generated code");
       throw new RuntimeException(e);
     }
     System.out.println("Parsed objects from template code");
+    // testPrintParsedChunks(templateChunks);
 
-    testPrintParsedChunks(chunks);
-
-    System.out.println("TODO: Replacing tags in source code with generated code");
+    System.out.println("Replacing tags in source code with generated code");
     // 2.2. Lookup the file name, try open file in the source path. Fail with error if not available
     // 2.3. Tokenize chunks within the section. For each chunk, search for comment-boundaries within the
     //  source file, and replace the contents with autogen content
-
-  }
-
-  private void testPrintParsedChunks(List<ParsedFileChunks> chunks) {
-    for (ParsedFileChunks fileChunks : chunks) {
-      System.out.println("File: " + fileChunks.getTargetFile());
-      for (Chunk chunk : fileChunks.getChunks()) {
-        System.out.format("ChunkId: %s\nChunk Body: %s\n\n", chunk.getChunkId(), chunk.getChunkText());
+    for (ParsedFileChunks fileChunks : templateChunks) {
+      try {
+        boolean modified = template.replaceChunksInFile(
+            packageRootDirPath,
+            fileChunks.getTargetFile(), fileChunks.getChunks());
+        if (!modified) {
+          System.err.format("No changes made to file: %s \n", fileChunks.getTargetFile());
+        }
+      } catch (IOException e) {
+        System.err.format("Error when replacing generated code in file: %s, in package-root: %s\n",
+            fileChunks.getTargetFile(), packageRootDirPath);
+        throw new RuntimeException(e);
       }
     }
+    System.out.println("Inserted generated code in source code");
   }
 
   private String generateTemplatedCode(String templateName, Map<String, Object> data)
@@ -116,4 +127,15 @@ public class TypesCodeGenerator {
     out.flush();
     return bos.toString("UTF-8");
   }
+
+  private void testPrintParsedChunks(List<ParsedFileChunks> chunks) {
+    for (ParsedFileChunks fileChunks : chunks) {
+      System.out.println("File: " + fileChunks.getTargetFile());
+      for (Chunk chunk : fileChunks.getChunks()) {
+        System.out.format("ChunkId: %s\nChunk Body: %s\n\n", chunk.getChunkId(),
+            chunk.getChunkText());
+      }
+    }
+  }
+
 }
