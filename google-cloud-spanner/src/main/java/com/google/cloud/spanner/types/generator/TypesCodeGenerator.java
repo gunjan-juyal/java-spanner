@@ -16,6 +16,8 @@
 
 package com.google.cloud.spanner.types.generator;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
 import com.google.cloud.spanner.types.generator.TemplatedCode.ParsedFileChunks;
 import com.google.cloud.spanner.types.generator.TemplatedCode.ParsedFileChunks.Chunk;
 import freemarker.template.Configuration;
@@ -25,6 +27,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.text.ParseException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,14 +46,32 @@ import java.util.Map;
  */
 public class TypesCodeGenerator {
 
+  private static class CodeGeneratorArgs {
+
+    @Parameter(
+        names = {"--sourcePackageRootDir", "-s"},
+        description = "Source code package root directory where code replacements need to be made. "
+            + "The relative file path from package root is given in the template",
+        required = true
+    )
+    private String sourcePackageRootDir;
+
+    @Parameter(description = "Any other command line args")
+    private List<String> otherArgs;
+  }
+
   public static void main(String[] args) throws IOException, TemplateException {
     // String packageRootDirPath = "/Users/gunjj/workspace/playground/github/java-spanner/google-cloud-spanner/src/main/java";
     if (args.length < 1 || args[0].trim().isEmpty()) {
       throw new IllegalArgumentException(
           "Expecting source-code package root directory as input argument, found none");
     }
-    System.out.format("Source-code package root directory for making code-replacements: \n", args[0]);
-    new TypesCodeGenerator().generateAndReplaceCode(args[0].trim());
+    CodeGeneratorArgs inputArgs = new CodeGeneratorArgs();
+    JCommander cmd = JCommander.newBuilder().addObject(inputArgs).build();
+    cmd.parse(args);
+    System.out.format("Source-code package root directory for making code-replacements: %s. Ignoring additional args: \"%s\"\n",
+        inputArgs.sourcePackageRootDir, inputArgs.otherArgs);
+    new TypesCodeGenerator().generateAndReplaceCode(inputArgs.sourcePackageRootDir);
   }
 
   public void generateAndReplaceCode(final String packageRootDirPath) {
@@ -74,7 +95,7 @@ public class TypesCodeGenerator {
       System.err.println("Error during auto-generation template processing: " + e.getMessage());
       throw new RuntimeException(e);
     }
-    System.out.println("Generated template code: ");
+    System.out.format("Generated template code [length=%d characters]\n", templatedCode.length());
     System.out.println(templatedCode);
 
     // 2.1. Tokenize the generated code by start/end autogen section tokens. For each section:
