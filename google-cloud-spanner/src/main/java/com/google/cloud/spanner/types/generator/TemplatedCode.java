@@ -82,7 +82,7 @@ public class TemplatedCode {
     return text.indexOf(tag, startIdx);
   }
 
-  private ParsedFileChunks extractChunksFromSection(String sectionBody) throws ParseException {
+  ParsedFileChunks extractChunksFromSection(String sectionBody) throws ParseException {
     String targetFile = extractFileNameFromSectionStartTag(sectionBody);
     ParsedFileChunks chunks = new ParsedFileChunks(targetFile);
     int currentIdx = 0;
@@ -101,7 +101,7 @@ public class TemplatedCode {
               ? nextChunkStartOffset : currentChunkEndOffset;
       int chunkBodyStartOffset = nextTagOffset(sectionBody, chunkStartOffset, "\n") + "\n".length();
       chunks.add(
-          new Chunk(chunkId, sectionBody.substring(chunkStartOffset, chunkEndOffset).trim()));
+          new Chunk(chunkId, sectionBody.substring(chunkBodyStartOffset, chunkEndOffset).trim()));
       chunkStartOffset = nextTagOffset(sectionBody, chunkEndOffset, CHUNK_START_TAG);
     }
     return chunks;

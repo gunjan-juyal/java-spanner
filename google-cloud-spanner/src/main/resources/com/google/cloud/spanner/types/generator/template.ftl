@@ -2,7 +2,7 @@
 
 <#-- TODO(gunjj@) Consider extending this to add boilerplate in if-else and switch blocks -->
 
-#AutogenSectionStart, TargetFile=com/google/cloud/spanner/AbstractResultSet.java
+#AutogenSectionStart, TargetFile=main/java/com/google/cloud/spanner/AbstractResultSet.java
 
 #AutogenChunkId=imports
 
@@ -38,7 +38,7 @@ import ${javaTypeImport};
 #AutogenSectionEnd
 <#-- ---- -->
 
-#AutogenSectionStart, TargetFile=com/google/cloud/spanner/AbstractStructReader.java
+#AutogenSectionStart, TargetFile=main/java/com/google/cloud/spanner/AbstractStructReader.java
 
 #AutogenChunkId=imports
 
@@ -81,7 +81,7 @@ import ${javaTypeImport};
 #AutogenSectionEnd
 <#-- ---- -->
 
-#AutogenSectionStart, TargetFile=com/google/cloud/spanner/ForwardingStructReader.java
+#AutogenSectionStart, TargetFile=main/java/com/google/cloud/spanner/ForwardingStructReader.java
 
 #AutogenChunkId=imports
 
@@ -114,7 +114,7 @@ import ${javaTypeImport};
 #AutogenSectionEnd
 <#-- ---- -->
 
-#AutogenSectionStart, TargetFile=com/google/cloud/spanner/Key.java
+#AutogenSectionStart, TargetFile=main/java/com/google/cloud/spanner/Key.java
 
 #AutogenChunkId=imports
 
@@ -133,7 +133,7 @@ import ${javaTypeImport};
 #AutogenSectionEnd
 <#-- ---- -->
 
-#AutogenSectionStart, TargetFile=com/google/cloud/spanner/ResultSets.java
+#AutogenSectionStart, TargetFile=main/java/com/google/cloud/spanner/ResultSets.java
 
 #AutogenChunkId=imports
 
@@ -150,7 +150,7 @@ import ${javaTypeImport};
 
     @Override
     public ${javaType} get${javaType}(String columnName) {
-      return getCurrentRowAsStruct().get${javaType}(columnIndex);
+      return getCurrentRowAsStruct().get${javaType}(columnName);
     }
 
     @Override
@@ -166,7 +166,7 @@ import ${javaTypeImport};
 #AutogenSectionEnd
 <#-- ---- -->
 
-#AutogenSectionStart, TargetFile=com/google/cloud/spanner/Struct.java
+#AutogenSectionStart, TargetFile=main/java/com/google/cloud/spanner/Struct.java
 
 #AutogenChunkId=imports
 
@@ -189,7 +189,7 @@ import ${javaTypeImport};
 #AutogenSectionEnd
 <#-- ---- -->
 
-#AutogenSectionStart, TargetFile=com/google/cloud/spanner/StructReader.java
+#AutogenSectionStart, TargetFile=main/java/com/google/cloud/spanner/StructReader.java
 
 #AutogenChunkId=imports
 
@@ -218,7 +218,7 @@ import ${javaTypeImport};
 #AutogenSectionEnd
 <#-- ---- -->
 
-#AutogenSectionStart, TargetFile=com/google/cloud/spanner/Type.java
+#AutogenSectionStart, TargetFile=main/java/com/google/cloud/spanner/Type.java
 
 #AutogenChunkId=private_statics
 
@@ -233,13 +233,12 @@ private static final Type TYPE_ARRAY_${spannerType?upper_case} = new Type(Code.A
   }
 
 #AutogenChunkId=enum
-
-${spannerType?upper_case}(TypeCode.${spannerType?upper_case}),
+    ${spannerType?upper_case}(TypeCode.${spannerType?upper_case}),
 
 #AutogenSectionEnd
 <#-- ---- -->
 
-#AutogenSectionStart, TargetFile=com/google/cloud/spanner/Value.java
+#AutogenSectionStart, TargetFile=main/java/com/google/cloud/spanner/Value.java
 
 #AutogenChunkId=imports
 
@@ -249,13 +248,17 @@ import ${javaTypeImport};
 
 #AutogenChunkId=public_statics
 
+// TODO(Auto-generation): Consider if we also need to manually generate a method taking a
+//  primitive Java type as input. E.g. float64(Double) -> float64(double);
+//  latter forms are not auto-generated in this template.
+
   /**
    * Returns a {@code ${spannerType?upper_case}} value.
    *
    * @param v the value, which may be null
    */
   public static Value ${spannerType}(@Nullable ${javaType} v) {
-    return new ${spannerType?cap_first}Impl(v == null, v);
+    return new GenericValue<${javaType}>(v == null, Type.${spannerType}(), v);
   }
 
   /**
@@ -275,8 +278,8 @@ import ${javaTypeImport};
    *
    * @throws IllegalStateException if {@code isNull()} or the value is not of the expected type
    */
-
   public abstract ${javaType} get${spannerType?cap_first}();
+
   /**
    * Returns the value of an {@code ARRAY<${spannerType?upper_case}>}-typed instance. While the returned list itself
    * will never be {@code null}, elements of that list may be null.
@@ -294,7 +297,7 @@ import ${javaTypeImport};
 
     @Override
     public List<${javaType}> get${spannerType?cap_first}Array() {
-      throw defaultGetter(Type.array(Type.${spannerType?cap_first}()));
+      throw defaultGetter(Type.array(Type.${spannerType}()));
     }
 
 #AutogenChunkId=GenericValue
@@ -306,10 +309,35 @@ import ${javaTypeImport};
       return (${javaType}) value;
     }
 
+#AutogenChunkId=typeArrayImpl
+
+// TODO(Auto-generation): This template provides a default implementation of
+//  backing an array of a new type. This may need to be customized based on the
+//  type-specific requirements. A manual review is needed to verify if the
+//  implementation fits the requirements.
+
+  private static class ${spannerType?cap_first}ArrayImpl extends AbstractArrayValue<${javaType}> {
+
+    private ${spannerType?cap_first}ArrayImpl(boolean isNull, @Nullable List<${javaType}> values) {
+      super(isNull, Type.${spannerType}(), values);
+    }
+
+    @Override
+    public List<${javaType}> get${spannerType?cap_first}Array() {
+      checkNotNull();
+      return value;
+    }
+
+    @Override
+    void appendElement(StringBuilder b, ${javaType} element) {
+      b.append(element);
+    }
+  }
+
 #AutogenSectionEnd
 <#-- ---- -->
 
-#AutogenSectionStart, TargetFile=com/google/cloud/spanner/ValueBinder.java
+#AutogenSectionStart, TargetFile=main/java/com/google/cloud/spanner/ValueBinder.java
 
 #AutogenChunkId=imports
 
@@ -332,7 +360,7 @@ import ${javaTypeImport};
 #AutogenSectionEnd
 <#-- ---- -->
 
-#AutogenSectionStart, TargetFile=com/google/cloud/spanner/connection/ChecksumResultSet.java
+#AutogenSectionStart, TargetFile=main/java/com/google/cloud/spanner/connection/ChecksumResultSet.java
 
 #AutogenChunkId=imports
 
@@ -343,7 +371,7 @@ import ${javaTypeImport};
 #AutogenSectionEnd
 <#-- ---- -->
 
-#AutogenSectionStart, TargetFile=com/google/cloud/spanner/connection/DirectExecuteResultSet.java
+#AutogenSectionStart, TargetFile=main/java/com/google/cloud/spanner/connection/DirectExecuteResultSet.java
 
 #AutogenChunkId=imports
 
@@ -380,7 +408,7 @@ import ${javaTypeImport};
 #AutogenSectionEnd
 <#-- ---- -->
 
-#AutogenSectionStart, TargetFile=com/google/cloud/spanner/connection/ReplaceableForwardingResultSet.java
+#AutogenSectionStart, TargetFile=main/java/com/google/cloud/spanner/connection/ReplaceableForwardingResultSet.java
 
 #AutogenChunkId=imports
 
@@ -413,6 +441,29 @@ import ${javaTypeImport};
     checkClosed();
     return delegate.get${javaType}List(columnName);
   }
+
+#AutogenSectionEnd
+<#-- ---- -->
+
+#AutogenSectionStart, TargetFile=test/java/com/google/cloud/spanner/AbstractStructReaderTypesTest.java
+
+#AutogenChunkId=imports
+
+<#if javaTypeImport??>
+import ${javaTypeImport};
+</#if>
+
+#AutogenChunkId=body
+
+    @Override
+    protected ${javaType} get${javaType}Internal(int columnIndex) {
+      return null;
+    }
+
+    @Override
+    protected List<${javaType}> get${javaType}ListInternal(int columnIndex) {
+      return null;
+    }
 
 #AutogenSectionEnd
 <#-- ---- -->

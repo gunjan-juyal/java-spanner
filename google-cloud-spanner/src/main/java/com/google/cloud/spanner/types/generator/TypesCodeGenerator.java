@@ -27,7 +27,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.text.ParseException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,19 +48,21 @@ public class TypesCodeGenerator {
   private static class CodeGeneratorArgs {
 
     @Parameter(
-        names = {"--sourcePackageRootDir", "-s"},
-        description = "Source code package root directory where code replacements need to be made. "
-            + "The relative file path from package root is given in the template",
+        names = {"--sourceDirPath", "-s"},
+        description = "Source code root directory where code replacements need to be made. "
+            + "This would typically be the fully-qualified 'src' directory of the repository, "
+            + "including 'src'. The relative path from source root to each file to be updated is "
+            + "provided in the template.",
         required = true
     )
-    private String sourcePackageRootDir;
+    private String sourceDirPath;
 
     @Parameter(description = "Any other command line args")
     private List<String> otherArgs;
   }
 
   public static void main(String[] args) throws IOException, TemplateException {
-    // String packageRootDirPath = "/Users/gunjj/workspace/playground/github/java-spanner/google-cloud-spanner/src/main/java";
+    // String sourceDirPath = "/Users/gunjj/workspace/playground/github/java-spanner/google-cloud-spanner/src";
     if (args.length < 1 || args[0].trim().isEmpty()) {
       throw new IllegalArgumentException(
           "Expecting source-code package root directory as input argument, found none");
@@ -69,12 +70,12 @@ public class TypesCodeGenerator {
     CodeGeneratorArgs inputArgs = new CodeGeneratorArgs();
     JCommander cmd = JCommander.newBuilder().addObject(inputArgs).build();
     cmd.parse(args);
-    System.out.format("Source-code package root directory for making code-replacements: %s. Ignoring additional args: \"%s\"\n",
-        inputArgs.sourcePackageRootDir, inputArgs.otherArgs);
-    new TypesCodeGenerator().generateAndReplaceCode(inputArgs.sourcePackageRootDir);
+    System.out.format("Source-code directory for making code-replacements: %s. Ignoring additional args: \"%s\"\n",
+        inputArgs.sourceDirPath, inputArgs.otherArgs);
+    new TypesCodeGenerator().generateAndReplaceCode(inputArgs.sourceDirPath);
   }
 
-  public void generateAndReplaceCode(final String packageRootDirPath) {
+  public void generateAndReplaceCode(final String sourceDirPath) {
     // 1. Generate code based from the template and runtime variables
     String templatedCode = null;
     System.out.println("Generating templatized code");
@@ -118,14 +119,14 @@ public class TypesCodeGenerator {
     for (ParsedFileChunks fileChunks : templateChunks) {
       try {
         boolean modified = template.replaceChunksInFile(
-            packageRootDirPath,
+            sourceDirPath,
             fileChunks.getTargetFile(), fileChunks.getChunks());
         if (!modified) {
           System.err.format("No changes made to file: %s \n", fileChunks.getTargetFile());
         }
       } catch (IOException e) {
         System.err.format("Error when replacing generated code in file: %s, in package-root: %s\n",
-            fileChunks.getTargetFile(), packageRootDirPath);
+            fileChunks.getTargetFile(), sourceDirPath);
         throw new RuntimeException(e);
       }
     }
