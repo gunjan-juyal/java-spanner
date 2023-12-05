@@ -1,7 +1,5 @@
 <#ftl output_format="plainText">
 
-<#-- TODO(gunjj@) Consider extending this to add boilerplate in if-else and switch blocks -->
-
 #AutogenSectionStart, TargetFile=main/java/com/google/cloud/spanner/AbstractResultSet.java
 
 #AutogenChunkId=imports
@@ -34,6 +32,15 @@ import ${javaTypeImport};
   protected List<${javaType}> get${javaType}ListInternal(int columnIndex) {
     return currRow().get${javaType}ListInternal(columnIndex);
   }
+
+#AutogenChunkId=switchBlockDecodeValue
+
+        case ${spannerType?upper_case}:
+          return null; // TODO(Auto-generation): Add deserialization and parsing logic here
+
+#AutogenChunkId=switchBlockDecodeArrayValue
+
+        case ${spannerType?upper_case}: // TODO(Auto-generation): Review to see if more performant custom containers are needed instead of the default to avoid wrapper objects
 
 #AutogenSectionEnd
 <#-- ---- -->
@@ -130,6 +137,19 @@ import ${javaTypeImport};
       return this;
     }
 
+#AutogenChunkId=ifBlockAppendObject
+        else if (value instanceof ${javaType}) {
+          buffer.add((${javaType})value); // TODO(Auto-generation): Review to see if any special handling is needed or if this block is made redundant by the default catch-all condition
+        }
+
+#AutogenChunkId=javadocGetParts
+   *   <li>{@code ${spannerType?upper_case}} is represented by {@link ${javaType}}
+
+#AutogenChunkId=ifBlockToProto
+      else if (part instanceof ${javaType}) {
+        builder.addValuesBuilder().setNullValue(NullValue.NULL_VALUE); // TODO(Auto-generation): Add serialization logic from language-specific object to gRPC wire-encoding-type here, replacing 'setNullValue'
+      }
+
 #AutogenSectionEnd
 <#-- ---- -->
 
@@ -186,6 +206,14 @@ import ${javaTypeImport};
       return values.get(columnIndex).get${spannerType?cap_first}Array();
     }
 
+#AutogenChunkId=switchBlockGetAsObject
+      case ${spannerType?upper_case}:
+        return get${javaType}Internal(columnIndex);
+
+#AutogenChunkId=switchBlockInnerGetAsObject
+          case ${spannerType?upper_case}:
+            return get${javaType}ListInternal(columnIndex);
+
 #AutogenSectionEnd
 <#-- ---- -->
 
@@ -220,6 +248,12 @@ import ${javaTypeImport};
 
 #AutogenSectionStart, TargetFile=main/java/com/google/cloud/spanner/Type.java
 
+#AutogenChunkId=imports
+
+<#if javaTypeImport??>
+import ${javaTypeImport};
+</#if>
+
 #AutogenChunkId=private_statics
 
 private static final Type TYPE_${spannerType?upper_case} = new Type(Code.${spannerType?upper_case}, null, null);
@@ -235,6 +269,25 @@ private static final Type TYPE_ARRAY_${spannerType?upper_case} = new Type(Code.A
 #AutogenChunkId=enum
     ${spannerType?upper_case}(TypeCode.${spannerType?upper_case}),
 
+#AutogenChunkId=switchBlockArray
+      case ${spannerType?upper_case}:
+        return TYPE_ARRAY_${spannerType?upper_case};
+
+#AutogenChunkId=ifBlockFromProto
+// TODO(Auto-generation): Review to verify that the new type ${spannerType?upper_case} is handled as a primitive type and no special handling is needed here
+
+#AutogenChunkId=privateStaticsCodeToPrimitiveTypeMap
+      .put(Code.${spannerType?upper_case}, TYPE_${spannerType?upper_case}) // TODO(Auto-generation): Review to verify that the new type can be handled as a primitive type
+
+#AutogenChunkId=privateStaticsCodeToArrayTypeMap
+      .put(Code.${spannerType?upper_case}, TYPE_ARRAY_${spannerType?upper_case})
+
+#AutogenChunkId=privateStaticsSupportedPrimitiveTypeClasses
+          , ${javaType}.class // TODO(Auto-generation): Review to verify that the new type can be handled as a primitive type
+
+#AutogenChunkId=privateStaticsSupportedPrimitiveTypeCodes
+          , Code.${spannerType?upper_case} // TODO(Auto-generation): Review to verify that the new type can be handled as a primitive type
+
 #AutogenSectionEnd
 <#-- ---- -->
 
@@ -248,8 +301,8 @@ import ${javaTypeImport};
 
 #AutogenChunkId=public_statics
 
-// TODO(Auto-generation): Consider if we also need to manually generate a method taking a
-//  primitive Java type as input. E.g. float64(Double) -> float64(double);
+// TODO(Auto-generation): Consider if we also need to manually generate a method
+//  taking a primitive Java type as input. E.g. float64(Double) -> float64(double);
 //  latter forms are not auto-generated in this template.
 
   /**
@@ -334,6 +387,18 @@ import ${javaTypeImport};
     }
   }
 
+#AutogenChunkId=switchBlockPrimitivesToValue
+        case ${spannerType?upper_case}:
+          return ${spannerType}Array((Iterable<${javaType}>) values);
+
+#AutogenChunkId=switchBlockGetValue
+        case ${spannerType?upper_case}:
+          return Value.${spannerType}(value.get${javaType}(fieldIndex));
+
+#AutogenChunkId=switchBlockInnerGetValue
+              case ${spannerType?upper_case}:
+                return Value.${spannerType}Array(value.get${javaType}List(fieldIndex));
+
 #AutogenSectionEnd
 <#-- ---- -->
 
@@ -367,6 +432,25 @@ import ${javaTypeImport};
 <#if javaTypeImport??>
 import ${javaTypeImport};
 </#if>
+
+#AutogenChunkId=ifBlockFunnel
+
+// TODO(Auto-generation): This template provides a default implementation of
+//  computing checksum of a row. This may need to be customized for the new type
+//  if it cannot be handled in the default way (i.e. as a primitive type). A
+//  manual review is needed for this and similar methods (such as funnelArray).
+
+#AutogenChunkId=switchBlockFunnelValue
+
+// TODO(Auto-generation): This template provides a default implementation of
+//  converting the type to checksum data. This may need to be customized for the
+//  new type if it cannot be handled in the default way (i.e. converting to its
+//  string representation). A manual review is needed.
+          case ${spannerType?upper_case}:
+            String stringRepresentation = ((${javaType}) value).toString();
+            into.putInt(stringRepresentation.length());
+            into.putUnencodedChars(stringRepresentation);
+            break;
 
 #AutogenSectionEnd
 <#-- ---- -->
