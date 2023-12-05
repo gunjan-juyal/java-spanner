@@ -73,9 +73,10 @@ public class TemplatedCode {
 
   private static String getCroppedDebugString(String string, int startOffset) {
     return startOffset + SECTION_LENGTH_IN_SECTION_PARSE_EXCEPTION > string.length()
-        ? string.substring(startOffset) + "..."
+        ? string.substring(startOffset).trim().replace("\n", "\\n") + "..."
         : string.substring(startOffset,
-            startOffset + SECTION_LENGTH_IN_SECTION_PARSE_EXCEPTION) + "...";
+            startOffset + SECTION_LENGTH_IN_SECTION_PARSE_EXCEPTION).trim()
+          .replace("\n", "\\n") + "...";
   }
 
   int nextTagOffset(String text, int startIdx, String tag) {
@@ -101,7 +102,7 @@ public class TemplatedCode {
               ? nextChunkStartOffset : currentChunkEndOffset;
       int chunkBodyStartOffset = nextTagOffset(sectionBody, chunkStartOffset, "\n") + "\n".length();
       chunks.add(
-          new Chunk(chunkId, sectionBody.substring(chunkBodyStartOffset, chunkEndOffset).trim()));
+          new Chunk(chunkId, sectionBody.substring(chunkBodyStartOffset, chunkEndOffset)));
       chunkStartOffset = nextTagOffset(sectionBody, chunkEndOffset, CHUNK_START_TAG);
     }
     return chunks;
@@ -154,24 +155,34 @@ public class TemplatedCode {
     List<String> destLines = new ArrayList<>(sourceLines.size() + 50);
     int destIdx = 0;
     boolean hasBeenModified = false;
+    int chunksInserted = 0;
     for (String line : sourceLines) {
       Optional<String> chunkId = getChunkIdFromSourceLine(line);
-      if (chunkId.isPresent()) {
-        // String chunkId = getChunkIdFromSourceLine(line);
-        System.out.format("Test: Found chunk ID: %s in line: %s in file: %s\n", chunkId, line,
+      if (chunkId.isPresent() && chunkIdToContentMap.containsKey(chunkId.get())) {
+        System.out.format("Test: Found chunk ID: [%s] in line: \"%s\" in file: %s\n", chunkId.get(), line,
             targetFile);
         // Insert line followed by the source
         destLines.add(line);
         destLines.add(chunkIdToContentMap.get(chunkId.get()));
-        hasBeenModified = true;
+        chunksInserted++;
         System.out.format("Inserting source in file: %s for chunkId: %s \n", targetFile,
             chunkId.get());
       } else {
+        if (chunkId.isPresent() && !chunkIdToContentMap.containsKey(chunkId.get())) {
+          System.err.format(
+              "Warning: Did not find matching code in template for chunk ID: [%s] in line: \"%s\" in file: %s. Skipping chunk tag..\n",
+              chunkId.get(), line, targetFile);
+        }
         destLines.add(line);
       }
     }
+    if (chunks.size() > chunksInserted) {
+      System.err.format(
+          "Warning: Some chunks in template were not replaced in the source file: %s at path: %s. Please review if this is intended.\n",
+          targetFile, packageRootDirPath);
+    }
     Files.write(path, destLines, Charset.forName("UTF-8"));
-    return hasBeenModified;
+    return chunksInserted > 0;
   }
 
   Optional<String> getChunkIdFromSourceLine(String line) {

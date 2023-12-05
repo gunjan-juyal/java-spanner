@@ -96,7 +96,7 @@ public class TypesCodeGenerator {
       System.err.println("Error during auto-generation template processing: " + e.getMessage());
       throw new RuntimeException(e);
     }
-    System.out.format("Generated template code [length=%d characters]\n", templatedCode.length());
+    System.out.format("Finished generating template code. [length=%d characters]\n", templatedCode.length());
     System.out.println(templatedCode);
 
     // 2.1. Tokenize the generated code by start/end autogen section tokens. For each section:
@@ -109,7 +109,7 @@ public class TypesCodeGenerator {
       System.err.println("Error trying to parse generated code");
       throw new RuntimeException(e);
     }
-    System.out.println("Parsed objects from template code");
+    System.out.println("Finished parsing objects from template code");
     // testPrintParsedChunks(templateChunks);
 
     System.out.println("Replacing tags in source code with generated code");
@@ -130,7 +130,7 @@ public class TypesCodeGenerator {
         throw new RuntimeException(e);
       }
     }
-    System.out.println("Inserted generated code in source code");
+    System.out.println("Finished inserted generated code in source code");
   }
 
   private String generateTemplatedCode(String templateName, Map<String, Object> data)

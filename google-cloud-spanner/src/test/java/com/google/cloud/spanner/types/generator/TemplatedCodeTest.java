@@ -75,13 +75,14 @@ public class TemplatedCodeTest {
 
   @Test
   public void nextTagOffsetTest() {
-    System.out.println(SAMPLE_TEMPLATE_STRING_SHORT);
     assertEquals(0, templatedCode.nextTagOffset(SAMPLE_TEMPLATE_STRING_SHORT, 0,
-        "#AutogenSectionStart"));
-    assertEquals(197, templatedCode.nextTagOffset(SAMPLE_TEMPLATE_STRING_SHORT, 1,
         "#AutogenSectionStart"));
     assertEquals(82, templatedCode.nextTagOffset(SAMPLE_TEMPLATE_STRING_SHORT, 0,
         "#AutogenChunkId"));
+    assertEquals(136, templatedCode.nextTagOffset(SAMPLE_TEMPLATE_STRING_SHORT, 106,
+        "#AutogenChunkId"));
+    assertEquals(466, templatedCode.nextTagOffset(SAMPLE_TEMPLATE_STRING_LONG, 1,
+        "#AutogenSectionStart"));
   }
 
   @Test
