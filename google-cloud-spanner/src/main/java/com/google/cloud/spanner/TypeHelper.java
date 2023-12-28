@@ -41,6 +41,7 @@ public final class TypeHelper {
         .put(Code.JSON, value::getJson)
         .put(Code.PG_JSONB, value::getPgJsonb)
         .put(Code.TIMESTAMP, value::getTimestamp)
+        .put(Code.NUMERIC, value::getNumeric)
         .build();
   }
 
@@ -120,14 +121,10 @@ public final class TypeHelper {
         return row.getPgJsonbList(columnIndex);
       case TIMESTAMP:
         return row.getTimestampList(columnIndex);
+      case NUMERIC:
+        return row.getBigDecimalList(columnIndex);
       default:
         throw new IllegalArgumentException(String.format("unsupported array element type: %s", arrayElementType));
     }
   }
-
-  // private static final .. - WIP - Map of suppliers to be used in protoToPrimitive map
-
-  // public static Object protoToPrimitive(Type fieldType, com.google.protobuf.Value proto) {
-  //
-  // }
 }
