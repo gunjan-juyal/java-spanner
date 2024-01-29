@@ -1236,7 +1236,8 @@ public abstract class Value implements Serializable {
         EnumSet.of(Code.STRING, Code.JSON, Code.PG_JSONB));
 
     private static final Set<Code> GENERIC_SUPPORTED_TYPE_CODES = Collections.unmodifiableSet(
-        EnumSet.of(Code.STRING, Code.JSON, Code.PG_JSONB, Code.INT64, Code.FLOAT64, Code.BOOL));
+        EnumSet.of(Code.STRING, Code.JSON, Code.PG_JSONB, Code.INT64, Code.FLOAT64, Code.BOOL,
+            Code.NUMERIC));
 
     private final Type type;
     private final R value;  // Language-specific object that encapsulates the data (e.g. com.google.cloud.Date, java.lang.Long etc)

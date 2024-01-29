@@ -154,4 +154,71 @@ public class ITDatabaseTest {
       assertThat(e.getResourceName()).isEqualTo(nonExistingInstanceId.getName());
     }
   }
+
+  @Test
+  public void testNumericPrimaryKey()
+      throws InterruptedException, ExecutionException, TimeoutException {
+    assumeFalse("Emulator does not support numeric primary keys", isUsingEmulator());
+
+    final String projectId = env.getTestHelper().getInstanceId().getProject();
+    final String instanceId = env.getTestHelper().getInstanceId().getInstance();
+    final String databaseId = env.getTestHelper().getUniqueDatabaseId();
+    final String table = "NumericTable";
+    final DatabaseId id = DatabaseId.of(projectId, instanceId, databaseId);
+    final DatabaseAdminClient databaseAdminClient =
+        env.getTestHelper().getClient().getDatabaseAdminClient();
+
+    try {
+      // Creates table with numeric primary key
+      final OperationFuture<Database, CreateDatabaseMetadata> operation =
+          databaseAdminClient.createDatabase(
+              instanceId,
+              databaseId,
+              Collections.singletonList(
+                  "CREATE TABLE " + table + " (" + "Id NUMERIC NOT NULL" + ") PRIMARY KEY (Id)"));
+      final Database database = operation.get(10, TimeUnit.MINUTES);
+      assertNotNull(database);
+
+      // Writes data into the table
+      final DatabaseClient databaseClient = env.getTestHelper().getClient().getDatabaseClient(id);
+      final ArrayList<Mutation> mutations = new ArrayList<>();
+      for (int i = 0; i < 5; i++) {
+        mutations.add(
+            Mutation.newInsertBuilder(table).set("Id").to(new BigDecimal(i + "")).build());
+      }
+      databaseClient.write(mutations);
+
+      // Reads the data to verify the writes
+      try (final ResultSet resultSet =
+          databaseClient.singleUse().read(table, KeySet.all(), Collections.singletonList("Id"))) {
+        for (int i = 0; resultSet.next(); i++) {
+          assertEquals(new BigDecimal(i + ""), resultSet.getBigDecimal("Id"));
+        }
+      }
+
+      // Deletes data from the table, leaving only the Id = 0 row
+      databaseClient
+          .readWriteTransaction()
+          .run(
+              new TransactionCallable<Object>() {
+                @Nullable
+                @Override
+                public Object run(TransactionContext transaction) throws Exception {
+                  transaction.executeUpdate(Statement.of("DELETE FROM " + table + " WHERE Id > 0"));
+                  return null;
+                }
+              });
+
+      // Reads the data to verify the deletes only left a single row left
+      try (final ResultSet resultSet =
+          databaseClient
+              .singleUse()
+              .executeQuery(Statement.of("SELECT COUNT(1) as cnt FROM " + table))) {
+        resultSet.next();
+        assertEquals(1L, resultSet.getLong("cnt"));
+      }
+    } finally {
+      databaseAdminClient.dropDatabase(instanceId, databaseId);
+    }
+  }
 }

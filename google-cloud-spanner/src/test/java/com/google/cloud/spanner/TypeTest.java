@@ -115,6 +115,16 @@ public class TypeTest {
   }
 
   @Test
+  public void numeric() {
+    new ScalarTypeTester(Type.Code.NUMERIC, TypeCode.NUMERIC) {
+      @Override
+      Type newType() {
+        return Type.numeric();
+      }
+    }.test();
+  }
+
+  @Test
   public void pgNumeric() {
     new ScalarTypeTester(Type.Code.PG_NUMERIC, TypeCode.NUMERIC, TypeAnnotationCode.PG_NUMERIC) {
       @Override
@@ -263,6 +273,16 @@ public class TypeTest {
       @Override
       Type newElementType() {
         return Type.float64();
+      }
+    }.test();
+  }
+
+  @Test
+  public void numericArray() {
+    new ArrayTypeTester(Type.Code.NUMERIC, TypeCode.NUMERIC, true) {
+      @Override
+      Type newElementType() {
+        return Type.numeric();
       }
     }.test();
   }

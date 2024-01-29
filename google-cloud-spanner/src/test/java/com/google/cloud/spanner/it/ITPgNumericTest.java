@@ -386,42 +386,42 @@ public class ITPgNumericTest {
     }
   }
 
-  // @Test
-  // public void testMutationsWithPgNumericAsBigDecimal() {
-  //   assumeFalse(
-  //       "PgNumeric is not supported in the emulator", EmulatorSpannerHelper.isUsingEmulator());
-  //   databaseClient
-  //       .readWriteTransaction()
-  //       .run(
-  //           transaction -> {
-  //             transaction.buffer(
-  //                 ImmutableList.of(
-  //                     Mutation.newInsertBuilder(tableName)
-  //                         .set("id")
-  //                         .to(1)
-  //                         .set("col1")
-  //                         .to(new BigDecimal("1.23"))
-  //                         .build(),
-  //                     Mutation.newInsertBuilder(tableName)
-  //                         .set("id")
-  //                         .to(3)
-  //                         .set("col1")
-  //                         .to((BigDecimal) null)
-  //                         .build()));
-  //             return null;
-  //           });
-  //
-  //   try (ResultSet resultSet =
-  //       databaseClient.singleUse().executeQuery(Statement.of("SELECT * FROM " + tableName))) {
-  //
-  //     resultSet.next();
-  //     assertEquals("1.23", resultSet.getString("col1"));
-  //     assertEquals(Value.pgNumeric("1.23"), resultSet.getValue("col1"));
-  //
-  //     resultSet.next();
-  //     assertTrue(resultSet.isNull("col1"));
-  //   }
-  // }
+  @Test
+  public void testMutationsWithPgNumericAsBigDecimal() {
+    assumeFalse(
+        "PgNumeric is not supported in the emulator", EmulatorSpannerHelper.isUsingEmulator());
+    databaseClient
+        .readWriteTransaction()
+        .run(
+            transaction -> {
+              transaction.buffer(
+                  ImmutableList.of(
+                      Mutation.newInsertBuilder(tableName)
+                          .set("id")
+                          .to(1)
+                          .set("col1")
+                          .to(new BigDecimal("1.23"))
+                          .build(),
+                      Mutation.newInsertBuilder(tableName)
+                          .set("id")
+                          .to(3)
+                          .set("col1")
+                          .to((BigDecimal) null)
+                          .build()));
+              return null;
+            });
+
+    try (ResultSet resultSet =
+        databaseClient.singleUse().executeQuery(Statement.of("SELECT * FROM " + tableName))) {
+
+      resultSet.next();
+      assertEquals("1.23", resultSet.getString("col1"));
+      assertEquals(Value.pgNumeric("1.23"), resultSet.getValue("col1"));
+
+      resultSet.next();
+      assertTrue(resultSet.isNull("col1"));
+    }
+  }
 
   @Test
   public void testMutationsWithPgNumericAsValue() {

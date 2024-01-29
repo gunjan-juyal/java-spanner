@@ -58,6 +58,7 @@ import com.google.spanner.v1.ResultSetStats;
 import io.grpc.Metadata;
 import io.grpc.StatusRuntimeException;
 import io.grpc.protobuf.ProtoUtils;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
 import org.junit.Test;
@@ -512,6 +513,7 @@ public class ReadWriteTransactionTest {
             Type.struct(
                 StructField.of("ID", Type.int64()),
                 StructField.of("NAME", Type.string()),
+                StructField.of("AMOUNT", Type.numeric()),
                 StructField.of("JSON", Type.json())),
             Arrays.asList(
                 Struct.newBuilder()
@@ -519,6 +521,8 @@ public class ReadWriteTransactionTest {
                     .to(1L)
                     .set("NAME")
                     .to("TEST 1")
+                    .set("AMOUNT")
+                    .to(BigDecimal.valueOf(550, 2))
                     .set("JSON")
                     .to(Value.json(simpleJson))
                     .build(),
@@ -527,6 +531,8 @@ public class ReadWriteTransactionTest {
                     .to(2L)
                     .set("NAME")
                     .to("TEST 2")
+                    .set("AMOUNT")
+                    .to(BigDecimal.valueOf(750, 2))
                     .set("JSON")
                     .to(Value.json(arrayJson))
                     .build()));
@@ -537,6 +543,7 @@ public class ReadWriteTransactionTest {
             Type.struct(
                 StructField.of("ID", Type.int64()),
                 StructField.of("NAME", Type.string()),
+                StructField.of("AMOUNT", Type.numeric()),
                 StructField.of("JSON", Type.json())),
             Arrays.asList(
                 Struct.newBuilder()
@@ -544,6 +551,8 @@ public class ReadWriteTransactionTest {
                     .to(1L)
                     .set("NAME")
                     .to("TEST 1")
+                    .set("AMOUNT")
+                    .to(new BigDecimal("5.50"))
                     .set("JSON")
                     .to(Value.json(simpleJson))
                     .build(),
@@ -552,6 +561,8 @@ public class ReadWriteTransactionTest {
                     .to(2L)
                     .set("NAME")
                     .to("TEST 2")
+                    .set("AMOUNT")
+                    .to(new BigDecimal("7.50"))
                     .set("JSON")
                     .to(Value.json(arrayJson))
                     .build()));
@@ -563,6 +574,7 @@ public class ReadWriteTransactionTest {
             Type.struct(
                 StructField.of("ID", Type.int64()),
                 StructField.of("NAME", Type.string()),
+                StructField.of("AMOUNT", Type.numeric()),
                 StructField.of("JSON", Type.json())),
             Arrays.asList(
                 Struct.newBuilder()
@@ -570,6 +582,8 @@ public class ReadWriteTransactionTest {
                     .to(2L)
                     .set("NAME")
                     .to("TEST 2")
+                    .set("AMOUNT")
+                    .to(new BigDecimal("7.50"))
                     .set("JSON")
                     .to(Value.json(arrayJson))
                     .build(),
@@ -578,6 +592,8 @@ public class ReadWriteTransactionTest {
                     .to(1L)
                     .set("NAME")
                     .to("TEST 1")
+                    .set("AMOUNT")
+                    .to(new BigDecimal("5.50"))
                     .set("JSON")
                     .to(Value.json(simpleJson))
                     .build()));
@@ -590,6 +606,7 @@ public class ReadWriteTransactionTest {
             Type.struct(
                 StructField.of("ID", Type.int64()),
                 StructField.of("NAME", Type.string()),
+                StructField.of("AMOUNT", Type.numeric()),
                 StructField.of("JSON", Type.json())),
             Arrays.asList(
                 Struct.newBuilder()
@@ -597,6 +614,8 @@ public class ReadWriteTransactionTest {
                     .to(1L)
                     .set("NAME")
                     .to("TEST 1")
+                    .set("AMOUNT")
+                    .to(new BigDecimal("5.50"))
                     .set("JSON")
                     .to(Value.json(simpleJson))
                     .build(),
@@ -605,6 +624,8 @@ public class ReadWriteTransactionTest {
                     .to(2L)
                     .set("NAME")
                     .to("TEST 2")
+                    .set("AMOUNT")
+                    .to(new BigDecimal("7.50"))
                     .set("JSON")
                     .to(Value.json(arrayJson))
                     .build(),
@@ -613,6 +634,8 @@ public class ReadWriteTransactionTest {
                     .to(3L)
                     .set("NAME")
                     .to("TEST 3")
+                    .set("AMOUNT")
+                    .to(new BigDecimal("9.99"))
                     .set("JSON")
                     .to(Value.json(emptyArrayJson))
                     .build()));
