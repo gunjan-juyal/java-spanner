@@ -34,7 +34,6 @@ import com.google.protobuf.ProtocolMessageEnum;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
@@ -52,6 +51,8 @@ public class ValueBinderTest {
   private static final String PROTO_MESSAGE_METHOD_NAME = "protoMessage";
   private static final String PROTO_ENUM_METHOD_NAME = "protoEnum";
   private static final String BYTES_BASE64_METHOD_NAME = "bytesFromBase64";
+  private static final String GENERIC_PRIMITIVE_METHOD_NAME = "primitiveToValue";
+  private static final String GENERIC_PRIMITIVE_ARRAY_METHOD_NAME = "primitivesToValue";
   public static final String DEFAULT_PG_NUMERIC = "1.23";
 
   private Value lastValue;
@@ -212,6 +213,9 @@ public class ValueBinderTest {
         assertThat(lastValue).isEqualTo(expected);
         assertThat(binder.to(expected)).isEqualTo(lastReturnValue);
         assertThat(lastValue).isEqualTo(expected);
+      } else if (method.getName().equals(GENERIC_PRIMITIVE_METHOD_NAME) ||
+          method.getName().equals(GENERIC_PRIMITIVE_ARRAY_METHOD_NAME)) {
+        // TODO(gunjj@) Add tests for these two methods
       } else {
         // Array slice method: depends on DefaultValues returning arrays of length 2.
         assertThat(binderMethod.getParameterTypes().length).isEqualTo(3);
@@ -273,10 +277,6 @@ public class ValueBinderTest {
       return 1.0;
     }
 
-    public static BigDecimal defaultBigDecimal() {
-      return BigDecimal.valueOf(123, 2);
-    }
-
     public static AbstractMessage defaultAbstractMessage() {
       return SingerInfo.newBuilder().setSingerId(323).build();
     }
@@ -335,10 +335,6 @@ public class ValueBinderTest {
 
     public static Iterable<Double> defaultDoubleIterable() {
       return Arrays.asList(1.0, 2.0);
-    }
-
-    public static Iterable<BigDecimal> defaultBigDecimalIterable() {
-      return Arrays.asList(BigDecimal.valueOf(123, 2), BigDecimal.valueOf(456, 2));
     }
 
     public static Iterable<String> defaultStringIterable() {

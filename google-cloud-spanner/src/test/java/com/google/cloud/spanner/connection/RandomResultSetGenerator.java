@@ -51,12 +51,13 @@ public class RandomResultSetGenerator {
                 Type.newBuilder().setCode(TypeCode.BOOL).build(),
                 Type.newBuilder().setCode(TypeCode.INT64).build(),
                 Type.newBuilder().setCode(TypeCode.FLOAT64).build(),
+                // TODO(gunjj@): Add NUMERIC only for PG dialect till GoogleSQL NUMERIC is added
                 dialect == Dialect.POSTGRESQL
                     ? Type.newBuilder()
                         .setCode(TypeCode.NUMERIC)
                         .setTypeAnnotation(TypeAnnotationCode.PG_NUMERIC)
                         .build()
-                    : Type.newBuilder().setCode(TypeCode.NUMERIC).build(),
+                    : Type.newBuilder().setCode(TypeCode.STRING).build(),
                 Type.newBuilder().setCode(TypeCode.STRING).build(),
                 dialect == Dialect.POSTGRESQL
                     ? Type.newBuilder()
@@ -79,6 +80,7 @@ public class RandomResultSetGenerator {
                     .setCode(TypeCode.ARRAY)
                     .setArrayElementType(Type.newBuilder().setCode(TypeCode.FLOAT64))
                     .build(),
+                // TODO(gunjj@): Add NUMERIC only for PG dialect till GoogleSQL NUMERIC is added
                 Type.newBuilder()
                     .setCode(TypeCode.ARRAY)
                     .setArrayElementType(
@@ -229,6 +231,7 @@ public class RandomResultSetGenerator {
           builder.setStringValue(date.toString());
           break;
         case FLOAT64:
+          builder.setNumberValue(random.nextDouble());
           if (randomNaN()) {
             builder.setNumberValue(Double.NaN);
           } else {
@@ -239,6 +242,7 @@ public class RandomResultSetGenerator {
           if (dialect == Dialect.POSTGRESQL && randomNaN()) {
             builder.setStringValue("NaN");
           } else {
+            // TODO(gunjj@): Add NUMERIC only for PG dialect till GoogleSQL NUMERIC is added
             builder.setStringValue(BigDecimal.valueOf(random.nextDouble()).toString());
           }
           break;

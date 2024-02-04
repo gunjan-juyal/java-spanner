@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThrows;
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.Type.Code;
 import com.google.cloud.spanner.SingerProto.Genre;
 import com.google.cloud.spanner.SingerProto.SingerInfo;
 import com.google.common.collect.ImmutableList;
@@ -64,6 +65,25 @@ public class MutationTest {
   }
 
   @Test
+  public void insertUsingGenericMethods() {
+    Mutation m = Mutation.newInsertBuilder("T1")
+        .set("C1").to(Code.BOOL, Boolean.TRUE)
+        .set("C2").to(Code.FLOAT64, Double.valueOf(40.1D))
+        .set("C3").to(Code.JSON, "{\"color\":\"red\",\"value\":\"#f00\"}")
+        .set("C4").to(Value.primitiveToValue(Code.JSON, "[]"))
+        .build();
+    assertThat(m.getTable()).isEqualTo("T1");
+    assertThat(m.getOperation()).isEqualTo(Mutation.Op.INSERT);
+    assertThat(m.getColumns()).containsExactly("C1", "C2", "C3", "C4").inOrder();
+    assertThat(m.getValues())
+        .containsExactly(Value.bool(true), Value.float64(40.1),
+          Value.json("{\"color\":\"red\",\"value\":\"#f00\"}"),
+          Value.json("[]"))
+        .inOrder();
+    assertThat(m.toString()).isEqualTo("insert(T1{C1=true,C2=40.1,C3={\"color\":\"red\",\"value\":\"#f00\"},C4=[]})");
+  }
+
+  @Test
   public void insertOrUpdateEmpty() {
     Mutation m = Mutation.newInsertOrUpdateBuilder("T2").build();
     assertThat(m.getTable()).isEqualTo("T2");
@@ -101,6 +121,25 @@ public class MutationTest {
     assertThat(m.getColumns()).containsExactly("C1", "C2").inOrder();
     assertThat(m.getValues()).containsExactly(Value.bool(true), Value.int64(1234)).inOrder();
     assertThat(m.toString()).isEqualTo("update(T1{C1=true,C2=1234})");
+  }
+
+  @Test
+  public void updateUsingGenericMethods() {
+    Mutation m = Mutation.newUpdateBuilder("T1")
+        .set("C1").to(Code.BOOL, Boolean.TRUE)
+        .set("C2").to(Code.FLOAT64, Double.valueOf(40.1D))
+        .set("C3").to(Code.JSON, "{\"color\":\"red\",\"value\":\"#f00\"}")
+        .set("C4").to(Value.primitiveToValue(Code.JSON, "[]"))
+        .build();
+    assertThat(m.getTable()).isEqualTo("T1");
+    assertThat(m.getOperation()).isEqualTo(Mutation.Op.UPDATE);
+    assertThat(m.getColumns()).containsExactly("C1", "C2", "C3", "C4").inOrder();
+    assertThat(m.getValues())
+        .containsExactly(Value.bool(true), Value.float64(40.1),
+            Value.json("{\"color\":\"red\",\"value\":\"#f00\"}"),
+            Value.json("[]"))
+        .inOrder();
+    assertThat(m.toString()).isEqualTo("update(T1{C1=true,C2=40.1,C3={\"color\":\"red\",\"value\":\"#f00\"},C4=[]})");
   }
 
   @Test
@@ -535,12 +574,6 @@ public class MutationTest {
         .to((String) null)
         .set("stringValue")
         .to(Value.string("strValue"))
-        .set("bigDecimal")
-        .to(BigDecimal.valueOf(123, 2))
-        .set("bigDecimalNull")
-        .to((BigDecimal) null)
-        .set("bigDecimalValueAsNumeric")
-        .to(Value.numeric(BigDecimal.TEN))
         .set("pgNumericValue")
         .to(Value.pgNumeric("4.2"))
         .set("json")
@@ -595,12 +628,6 @@ public class MutationTest {
         .toStringArray(null)
         .set("stringArrValue")
         .to(Value.stringArray(ImmutableList.of("uno", "dos")))
-        .set("numericArr")
-        .toNumericArray(ImmutableList.of(BigDecimal.ONE, BigDecimal.TEN))
-        .set("numericArrNull")
-        .toNumericArray(null)
-        .set("numericArrValue")
-        .to(Value.numericArray(ImmutableList.of(BigDecimal.ZERO, BigDecimal.valueOf(234, 2))))
         .set("pgNumericArr")
         .toPgNumericArray(ImmutableList.of("1.23", "2.34"))
         .set("pgNumericArrNull")
@@ -654,6 +681,68 @@ public class MutationTest {
             Value.dateArray(
                 ImmutableList.of(
                     Date.fromYearMonthDay(2021, 1, 2), Date.fromYearMonthDay(2022, 2, 3))));
+  }
+
+  /**
+   *
+   */
+  @Test
+  public void javaSerializationUsingGenericMethods() {
+    reserializeAndAssert(appendAllTypesUsingGenericMethods(Mutation.newInsertBuilder("test")).build());
+    reserializeAndAssert(appendAllTypesUsingGenericMethods(Mutation.newUpdateBuilder("test")).build());
+    reserializeAndAssert(appendAllTypesUsingGenericMethods(Mutation.newReplaceBuilder("test")).build());
+    reserializeAndAssert(appendAllTypesUsingGenericMethods(Mutation.newInsertOrUpdateBuilder("test")).build());
+  }
+
+  /**
+   * Tests the generic Value::primitiveOfType() methods, only for BOOL, FLOAT64 and JSON types
+   * @param builder Write builder to append mutations to
+   * @return The builder object passed as argument
+   */
+  private Mutation.WriteBuilder appendAllTypesUsingGenericMethods(Mutation.WriteBuilder builder) {
+    return builder
+        .set("bool")
+        .to(Code.BOOL, Boolean.TRUE)
+        .set("boolNull")
+        .to(Code.BOOL, null)
+        .set("boolValue")
+        .to(Code.BOOL,  false)
+        .set("anotherBoolValue")
+        .to(Value.primitiveToValue(Code.BOOL, Boolean.FALSE))
+        .set("float")
+        .to(Code.FLOAT64, Double.valueOf(42.1))
+        .set("floatNull")
+        .to(Code.FLOAT64, null)
+        .set("floatValue")
+        .to(Code.FLOAT64, Double.valueOf(10D))
+        .set("anotherFloatValue")
+        .to(Value.primitiveToValue(Code.FLOAT64, Double.valueOf(10D)))
+        .set("json")
+        .to(Code.JSON, "{\"key\": \"value\"}}")
+        .set("jsonNull")
+        .to(Code.JSON, null)
+        .set("anotherJsonNull")
+        .to(Value.primitiveToValue(Code.JSON, null))
+        // TODO(gunjj@): Add tests for Arrays of above primitive types
+        // .set("boolArr")
+        // .toBoolArray(new boolean[] {true, false})
+        // .set("boolArrNull")
+        // .toBoolArray((boolean[]) null)
+        // .set("boolArrValue")
+        // .to(Value.boolArray(ImmutableList.of(false, true)))
+        // .set("floatArr")
+        // .toFloat64Array(new double[] {1.1, 2.2, 3.3})
+        // .set("floatArrNull")
+        // .toFloat64Array((double[]) null)
+        // .set("floatArrValue")
+        // .to(Value.float64Array(ImmutableList.of(10.1D, 10.2D, 10.3D)))
+        // .set("jsonArr")
+        // .toJsonArray(ImmutableList.of("{\"key\": \"value1\"}}", "{\"key\": \"value2\"}"))
+        // .set("jsonArrNull")
+        // .toJsonArray(null)
+        // .set("jsonArrValue")
+        // .to(Value.jsonArray(ImmutableList.of("{\"key\": \"value1\"}}", "{\"key\": \"value2\"}")))
+        ;
   }
 
   static Matcher<com.google.spanner.v1.Mutation> matchesProto(String expected) {

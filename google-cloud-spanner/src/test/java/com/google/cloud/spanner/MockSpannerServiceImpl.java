@@ -1298,7 +1298,9 @@ public class MockSpannerServiceImpl extends SpannerImplBase implements MockGrpcS
                 if (elementType.getTypeAnnotation() == TypeAnnotationCode.PG_NUMERIC) {
                   builder.bind(fieldName).toPgNumericArray(null);
                 } else {
-                  builder.bind(fieldName).toNumericArray(null);
+                  // builder.bind(fieldName).toNumericArray(null);
+                  throw new IllegalArgumentException("Unknown or invalid array parameter type: " +
+                      elementType.getCode() + " with type annotation: " + elementType.getTypeAnnotation());
                 }
                 break;
               case TIMESTAMP:
@@ -1341,7 +1343,9 @@ public class MockSpannerServiceImpl extends SpannerImplBase implements MockGrpcS
             if (fieldType.getTypeAnnotation() == TypeAnnotationCode.PG_NUMERIC) {
               builder.bind(fieldName).to(Value.pgNumeric(null));
             } else {
-              builder.bind(fieldName).to((BigDecimal) null);
+              // builder.bind(fieldName).to((BigDecimal) null);
+              throw new IllegalArgumentException("Unknown or invalid parameter type: " +
+                  fieldType.getCode() + " with type annotation: " + fieldType.getTypeAnnotation());
             }
             break;
           case STRUCT:
@@ -1426,12 +1430,14 @@ public class MockSpannerServiceImpl extends SpannerImplBase implements MockGrpcS
                               GrpcStruct.decodeArrayValue(
                                   com.google.cloud.spanner.Type.pgNumeric(), value.getListValue()));
                 } else {
-                  builder
-                      .bind(fieldName)
-                      .toNumericArray(
-                          (Iterable<BigDecimal>)
-                              GrpcStruct.decodeArrayValue(
-                                  com.google.cloud.spanner.Type.numeric(), value.getListValue()));
+                  throw new IllegalArgumentException("Unknown or invalid array parameter type: " +
+                      elementType.getCode() + " with type annotation: " + elementType.getTypeAnnotation());
+                  // builder
+                  //     .bind(fieldName)
+                  //     .toNumericArray(
+                  //         (Iterable<BigDecimal>)
+                  //             GrpcStruct.decodeArrayValue(
+                  //                 com.google.cloud.spanner.Type.numeric(), value.getListValue()));
                 }
                 break;
               case TIMESTAMP:
@@ -1489,7 +1495,9 @@ public class MockSpannerServiceImpl extends SpannerImplBase implements MockGrpcS
             if (fieldType.getTypeAnnotation() == TypeAnnotationCode.PG_NUMERIC) {
               builder.bind(fieldName).to(Value.pgNumeric(value.getStringValue()));
             } else {
-              builder.bind(fieldName).to(new BigDecimal(value.getStringValue()));
+              throw new IllegalArgumentException("Unknown or invalid parameter type: " +
+                  fieldType.getCode() + " with type annotation: " + fieldType.getTypeAnnotation());
+              // builder.bind(fieldName).to(new BigDecimal(value.getStringValue()));
             }
             break;
           case STRUCT:

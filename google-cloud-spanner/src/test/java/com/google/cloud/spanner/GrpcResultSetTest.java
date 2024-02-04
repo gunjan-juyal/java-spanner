@@ -19,6 +19,7 @@ package com.google.cloud.spanner;
 import static com.google.common.testing.SerializableTester.reserialize;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -27,6 +28,7 @@ import com.google.api.gax.rpc.ApiCallContext;
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.Type.Code;
 import com.google.cloud.spanner.SingerProto.Genre;
 import com.google.cloud.spanner.SingerProto.SingerInfo;
 import com.google.cloud.spanner.spi.v1.SpannerRpc;
@@ -41,7 +43,6 @@ import com.google.spanner.v1.QueryPlan;
 import com.google.spanner.v1.ResultSetMetadata;
 import com.google.spanner.v1.ResultSetStats;
 import com.google.spanner.v1.Transaction;
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -624,6 +625,86 @@ public class GrpcResultSetTest {
     assertThat(row).isEqualTo(copy);
   }
 
+  /**
+   * Tests the generic ResultSet APIs for Boolean values
+   */
+  @Test
+  public void getGenericTypeBoolean() {
+    getGenericTypeDelegate(Code.BOOL, Boolean.TRUE, Boolean.FALSE);
+  }
+
+  private void getGenericTypeDelegate(Code code, Object... testValues) {
+    if (code != Code.BOOL && code != Code.FLOAT64 && code != Code.JSON) {
+      throw new UnsupportedOperationException("Currently only supports BOOL, FLOAT64 and JSON. Found: " + code);
+    }
+
+    Type type = Type.CODE_TO_PRIMITIVE_TYPE.get(code);
+    PartialResultSet.Builder b = PartialResultSet.newBuilder()
+        .setMetadata(makeMetadata(Type.struct(Type.StructField.of("f", type))));
+    for (Object v : testValues) {
+      b.addValues(Value.primitiveToValue(code, v).toProto());
+    }
+    consumer.onPartialResultSet(b.build());
+    consumer.onCompleted();
+
+    for (Object v : testValues) {
+      assertTrue(resultSet.next());
+      Value value = resultSet.getValue(0);
+      assertThat(value.getType().getCode()).isEquivalentAccordingToCompareTo(code);
+      switch (code) {
+        // TODO(gunjj@): Seek feedback on type-unsafe value extraction - is rs.getValue().getBool() any more dangerous than rs.getBoolean()? Performance implications - in case of autoboxing?
+        //  Also, are the existing rs.getBoolean() methods autoboxing already in the call stack? If yes, then we _may_ be able to avoid autoboxing (Object creation) overheads
+        case BOOL:
+          if ((Boolean) v) {
+            assertTrue(value.getBool());
+          } else {
+            assertFalse(value.getBool());
+          }
+          break;
+        case FLOAT64:
+          assertThat(value.getFloat64()).isWithin(0.0).of((Double) v);
+          break;
+        case JSON:
+          assertEquals((String) v, value.getJson());
+      }
+    }
+  }
+
+  /**
+   * Tests the generic ResultSet APIs for Double values
+   */
+  @Test
+  public void getGenericTypeDouble() {
+    getGenericTypeDelegate(Code.FLOAT64, Double.MIN_VALUE, Double.MAX_VALUE, 0.0D);
+  }
+
+  /**
+   * Tests the generic ResultSet APIs for Double values
+   */
+  @Test
+  public void getGenericTypeJson() {
+    getGenericTypeDelegate(Code.JSON, "{\"color\":\"red\",\"value\":\"#f00\"}", "{}", "[]");
+  }
+
+  // TODO(gunjj@): Add tests/support for arrays of above primitive types
+
+  /**
+   * Test invalid type extraction from generic value
+   */
+  @Test
+  public void getInvalidTypeExtractionFromGenericValue() {
+    consumer.onPartialResultSet(
+        PartialResultSet.newBuilder()
+            .setMetadata(makeMetadata(Type.struct(Type.StructField.of("f", Type.bool()))))
+            .addValues(Value.bool(true).toProto())
+            .build());
+    consumer.onCompleted();
+    assertThat(resultSet.next()).isTrue();
+    Value value = resultSet.getValue(0);
+    Throwable exception = assertThrows(IllegalStateException.class, value::getString);
+    assertThat(exception.getMessage()).contains("Illegal call to getter of incorrect type.  Expected: STRING actual: BOOL");
+  }
+
   @Test
   public void getBoolean() {
     consumer.onPartialResultSet(
@@ -653,37 +734,6 @@ public class GrpcResultSetTest {
     assertThat(resultSet.getDouble(0)).isWithin(0.0).of(Double.MIN_VALUE);
     assertThat(resultSet.next()).isTrue();
     assertThat(resultSet.getDouble(0)).isWithin(0.0).of(Double.MAX_VALUE);
-  }
-
-  @Test
-  public void getBigDecimal() {
-    consumer.onPartialResultSet(
-        PartialResultSet.newBuilder()
-            .setMetadata(makeMetadata(Type.struct(Type.StructField.of("f", Type.numeric()))))
-            .addValues(
-                Value.numeric(
-                        new BigDecimal(
-                            "-" + Strings.repeat("9", 29) + "." + Strings.repeat("9", 9)))
-                    .toProto())
-            .addValues(
-                Value.numeric(
-                        new BigDecimal(Strings.repeat("9", 29) + "." + Strings.repeat("9", 9)))
-                    .toProto())
-            .addValues(Value.numeric(BigDecimal.ZERO).toProto())
-            .addValues(Value.numeric(new BigDecimal("1.23456")).toProto())
-            .build());
-    consumer.onCompleted();
-
-    assertThat(resultSet.next()).isTrue();
-    assertThat(resultSet.getBigDecimal(0).toPlainString())
-        .isEqualTo("-99999999999999999999999999999.999999999");
-    assertThat(resultSet.next()).isTrue();
-    assertThat(resultSet.getBigDecimal(0).toPlainString())
-        .isEqualTo("99999999999999999999999999999.999999999");
-    assertThat(resultSet.next()).isTrue();
-    assertThat(resultSet.getBigDecimal(0)).isEqualTo(BigDecimal.ZERO);
-    assertThat(resultSet.next()).isTrue();
-    assertThat(resultSet.getBigDecimal(0)).isEqualTo(BigDecimal.valueOf(123456, 5));
   }
 
   @Test
@@ -875,26 +925,6 @@ public class GrpcResultSetTest {
         .usingTolerance(0.0)
         .containsExactly(doubleArray)
         .inOrder();
-  }
-
-  @Test
-  public void getBigDecimalList() {
-    List<BigDecimal> bigDecimalsList = new ArrayList<>();
-    bigDecimalsList.add(BigDecimal.valueOf(Double.MIN_VALUE));
-    bigDecimalsList.add(BigDecimal.valueOf(Double.MAX_VALUE));
-    bigDecimalsList.add(BigDecimal.ZERO);
-    bigDecimalsList.add(new BigDecimal("1.23456"));
-
-    consumer.onPartialResultSet(
-        PartialResultSet.newBuilder()
-            .setMetadata(
-                makeMetadata(Type.struct(Type.StructField.of("f", Type.array(Type.numeric())))))
-            .addValues(Value.numericArray(bigDecimalsList).toProto())
-            .build());
-    consumer.onCompleted();
-
-    assertThat(resultSet.next()).isTrue();
-    assertThat(resultSet.getBigDecimalList(0)).isEqualTo(bigDecimalsList);
   }
 
   @Test

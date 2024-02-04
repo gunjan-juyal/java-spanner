@@ -57,8 +57,6 @@ public class ChecksumResultSetTest {
           .to(2 * 2)
           .set("doubleVal")
           .to(Value.float64(3.14d * 2d))
-          .set("bigDecimalVal")
-          .to(Value.numeric(BigDecimal.valueOf(123 * 2, 2)))
           .set("pgNumericVal")
           .to(Value.pgNumeric("2.46"))
           .set("stringVal")
@@ -83,8 +81,6 @@ public class ChecksumResultSetTest {
           .to(Value.int64Array(Arrays.asList(2L, null, 1L, 0L)))
           .set("doubleArray")
           .to(Value.float64Array(Arrays.asList(3.14d, null, 6.6626d, 10.1d)))
-          .set("bigDecimalArray")
-          .to(Value.numericArray(Arrays.asList(BigDecimal.TEN, null, BigDecimal.ONE)))
           .set("pgNumericArray")
           .to(Value.pgNumericArray(Arrays.asList("10", null, "1", "NaN")))
           .set("byteArray")
@@ -128,7 +124,6 @@ public class ChecksumResultSetTest {
             Type.StructField.of("boolVal", Type.bool()),
             Type.StructField.of("longVal", Type.int64()),
             Type.StructField.of("doubleVal", Type.float64()),
-            Type.StructField.of("bigDecimalVal", Type.numeric()),
             Type.StructField.of("pgNumericVal", Type.pgNumeric()),
             Type.StructField.of("stringVal", Type.string()),
             Type.StructField.of("jsonVal", Type.json()),
@@ -143,7 +138,6 @@ public class ChecksumResultSetTest {
             Type.StructField.of("boolArray", Type.array(Type.bool())),
             Type.StructField.of("longArray", Type.array(Type.int64())),
             Type.StructField.of("doubleArray", Type.array(Type.float64())),
-            Type.StructField.of("bigDecimalArray", Type.array(Type.numeric())),
             Type.StructField.of("pgNumericArray", Type.array(Type.pgNumeric())),
             Type.StructField.of("byteArray", Type.array(Type.bytes())),
             Type.StructField.of("timestampArray", Type.array(Type.timestamp())),
@@ -164,8 +158,6 @@ public class ChecksumResultSetTest {
             .to(2)
             .set("doubleVal")
             .to(Value.float64(3.14d))
-            .set("bigDecimalVal")
-            .to(Value.numeric(BigDecimal.valueOf(123, 2)))
             .set("pgNumericVal")
             .to(Value.pgNumeric("1.23"))
             .set("stringVal")
@@ -190,8 +182,6 @@ public class ChecksumResultSetTest {
             .to(Value.int64Array(Arrays.asList(1L, null, 2L)))
             .set("doubleArray")
             .to(Value.float64Array(Arrays.asList(3.14d, null, 6.6626d)))
-            .set("bigDecimalArray")
-            .to(Value.numericArray(Arrays.asList(BigDecimal.ONE, null, BigDecimal.TEN)))
             .set("pgNumericArray")
             .to(Value.pgNumericArray(Arrays.asList("1", null, "10")))
             .set("byteArray")
@@ -238,8 +228,6 @@ public class ChecksumResultSetTest {
             .to((Long) null)
             .set("doubleVal")
             .to((Double) null)
-            .set("bigDecimalVal")
-            .to((BigDecimal) null)
             .set("pgNumericVal")
             .to(Value.pgNumeric(null))
             .set("stringVal")
@@ -264,8 +252,6 @@ public class ChecksumResultSetTest {
             .toInt64Array((Iterable<Long>) null)
             .set("doubleArray")
             .toFloat64Array((Iterable<Double>) null)
-            .set("bigDecimalArray")
-            .toNumericArray(null)
             .set("pgNumericArray")
             .toPgNumericArray(null)
             .set("byteArray")
