@@ -777,8 +777,6 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
           return Value.int64(isNull ? null : getLongInternal(columnIndex));
         case ENUM:
           return Value.protoEnum(getLongInternal(columnIndex), columnType.getProtoTypeFqn());
-        case NUMERIC:
-          return Value.numeric(isNull ? null : getBigDecimalInternal(columnIndex));
         case PG_NUMERIC:
           return Value.pgNumeric(isNull ? null : getStringInternal(columnIndex));
         case FLOAT64:
