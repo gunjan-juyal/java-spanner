@@ -104,14 +104,14 @@ public class StatementTest {
         () -> Statement.newBuilder("SELECT * FROM table WHERE ")
             .append("float_field = @float_field ")
             .bind("float_field")
-            .to(Code.FLOAT64, Float.valueOf(40.1F))
+            .to(Code.FLOAT64, Integer.valueOf(40))
             .build());
 
     assertThrows(ClassCastException.class,
         () -> Statement.newBuilder("SELECT * FROM table WHERE ")
             .append("float_field = @float_field ")
             .bind("float_field")
-            .to(Code.FLOAT64, 40.1F)
+            .to(Code.FLOAT64, 40)
             .build());
   }
 

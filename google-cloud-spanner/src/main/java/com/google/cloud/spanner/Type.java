@@ -53,7 +53,6 @@ import javax.annotation.concurrent.Immutable;
  */
 @Immutable
 public final class Type implements Serializable {
-
   private static final Type TYPE_BOOL = new Type(Code.BOOL, null, null);
   private static final Type TYPE_INT64 = new Type(Code.INT64, null, null);
   private static final Type TYPE_FLOAT64 = new Type(Code.FLOAT64, null, null);
@@ -199,6 +198,24 @@ public final class Type implements Serializable {
     return TYPE_PG_JSONB;
   }
 
+  /**
+   * To get the descriptor for the {@code PROTO} type.
+   *
+   * @param protoTypeFqn Proto fully qualified name (ex: "spanner.examples.music.SingerInfo").
+   */
+  public static Type proto(String protoTypeFqn) {
+    return new Type(Code.PROTO, protoTypeFqn);
+  }
+
+  /**
+   * To get the descriptor for the {@code ENUM} type.
+   *
+   * @param protoTypeFqn Proto ENUM fully qualified name (ex: "spanner.examples.music.Genre")
+   */
+  public static Type protoEnum(String protoTypeFqn) {
+    return new Type(Code.ENUM, protoTypeFqn);
+  }
+
   /** Returns the descriptor for the {@code BYTES} type: a variable-length byte string. */
   public static Type bytes() {
     return TYPE_BYTES;
@@ -271,6 +288,7 @@ public final class Type implements Serializable {
   private final Code code;
   private final Type arrayElementType;
   private final ImmutableList<StructField> structFields;
+  private String protoTypeFqn;
 
   /**
    * Map of field name to field index. Ambiguous names are indexed to {@link #AMBIGUOUS_FIELD}. The
@@ -304,22 +322,29 @@ public final class Type implements Serializable {
     this.structFields = structFields;
   }
 
+  private Type(Code code, @Nonnull String protoTypeFqn) {
+    this(code, null, null);
+    this.protoTypeFqn = protoTypeFqn;
+  }
+
   /** Enumerates the categories of types. */
   public enum Code {
-    UNRECOGNIZED(TypeCode.UNRECOGNIZED),
-    BOOL(TypeCode.BOOL),
-    INT64(TypeCode.INT64),
-    NUMERIC(TypeCode.NUMERIC),
-    PG_NUMERIC(TypeCode.NUMERIC, TypeAnnotationCode.PG_NUMERIC),
-    FLOAT64(TypeCode.FLOAT64),
-    STRING(TypeCode.STRING),
-    JSON(TypeCode.JSON),
-    PG_JSONB(TypeCode.JSON, TypeAnnotationCode.PG_JSONB),
-    BYTES(TypeCode.BYTES),
-    TIMESTAMP(TypeCode.TIMESTAMP),
-    DATE(TypeCode.DATE),
-    ARRAY(TypeCode.ARRAY),
-    STRUCT(TypeCode.STRUCT);
+    UNRECOGNIZED(TypeCode.UNRECOGNIZED, "unknown"),
+    BOOL(TypeCode.BOOL, "boolean"),
+    INT64(TypeCode.INT64, "bigint"),
+    NUMERIC(TypeCode.NUMERIC, "unknown"),
+    PG_NUMERIC(TypeCode.NUMERIC, "numeric", TypeAnnotationCode.PG_NUMERIC),
+    FLOAT64(TypeCode.FLOAT64, "double precision"),
+    STRING(TypeCode.STRING, "character varying"),
+    JSON(TypeCode.JSON, "unknown"),
+    PG_JSONB(TypeCode.JSON, "jsonb", TypeAnnotationCode.PG_JSONB),
+    PROTO(TypeCode.PROTO, "proto"),
+    ENUM(TypeCode.ENUM, "enum"),
+    BYTES(TypeCode.BYTES, "bytea"),
+    TIMESTAMP(TypeCode.TIMESTAMP, "timestamp with time zone"),
+    DATE(TypeCode.DATE, "date"),
+    ARRAY(TypeCode.ARRAY, "array"),
+    STRUCT(TypeCode.STRUCT, "struct");
 
     private static final Map<Entry<TypeCode, TypeAnnotationCode>, Code> protoToCode;
 
@@ -332,15 +357,17 @@ public final class Type implements Serializable {
       protoToCode = builder.build();
     }
 
+    private final String postgreSQLName;
     private final TypeCode typeCode;
     private final TypeAnnotationCode typeAnnotationCode;
 
-    Code(TypeCode typeCode) {
-      this(typeCode, TYPE_ANNOTATION_CODE_UNSPECIFIED);
+    Code(TypeCode typeCode, String postgreSQLName) {
+      this(typeCode, postgreSQLName, TYPE_ANNOTATION_CODE_UNSPECIFIED);
     }
 
-    Code(TypeCode typeCode, TypeAnnotationCode typeAnnotationCode) {
+    Code(TypeCode typeCode, String postgreSQLName, TypeAnnotationCode typeAnnotationCode) {
       this.typeCode = typeCode;
+      this.postgreSQLName = postgreSQLName;
       this.typeAnnotationCode = typeAnnotationCode;
     }
 
@@ -364,6 +391,14 @@ public final class Type implements Serializable {
       } else {
         return typeCode.toString() + "<" + typeAnnotationCode.toString() + ">";
       }
+    }
+
+    private String getGoogleSQLName() {
+      return name();
+    }
+
+    private String getPostgreSQLName() {
+      return postgreSQLName;
     }
   }
 
@@ -433,6 +468,17 @@ public final class Type implements Serializable {
   public List<StructField> getStructFields() {
     Preconditions.checkState(code == Code.STRUCT, "Illegal call for non-STRUCT type");
     return structFields;
+  }
+
+  /**
+   * Returns the full package name for elements of this {@code Proto or @code Enum} type.
+   *
+   * @throws IllegalStateException if {@code code() != Code.PROTO or code() != Code.ENUM}
+   */
+  public String getProtoTypeFqn() {
+    Preconditions.checkState(
+        (code == Code.PROTO || code == Code.ENUM), "Illegal call for non-Proto type");
+    return protoTypeFqn;
   }
 
   /**
@@ -511,6 +557,31 @@ public final class Type implements Serializable {
     return b.toString();
   }
 
+  /** Returns the type name as used by the database in the given dialect. */
+  public String getSpannerTypeName(Dialect dialect) {
+    switch (dialect) {
+      case POSTGRESQL:
+        return getTypeNamePostgreSQL();
+      case GOOGLE_STANDARD_SQL:
+      default:
+        return getTypeNameGoogleSQL();
+    }
+  }
+
+  private String getTypeNameGoogleSQL() {
+    if (code == Code.ARRAY) {
+      return code.getGoogleSQLName() + "<" + arrayElementType.getTypeNameGoogleSQL() + ">";
+    }
+    return code.getGoogleSQLName();
+  }
+
+  private String getTypeNamePostgreSQL() {
+    if (code == Code.ARRAY) {
+      return arrayElementType.getTypeNamePostgreSQL() + "[]";
+    }
+    return code.getPostgreSQLName();
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -525,7 +596,8 @@ public final class Type implements Serializable {
     }
     return code == that.code
         && Objects.equals(arrayElementType, that.arrayElementType)
-        && Objects.equals(structFields, that.structFields);
+        && Objects.equals(structFields, that.structFields)
+        && Objects.equals(protoTypeFqn, that.protoTypeFqn);
   }
 
   @Override
@@ -550,17 +622,23 @@ public final class Type implements Serializable {
       for (StructField field : structFields) {
         fields.addFieldsBuilder().setName(field.getName()).setType(field.getType().toProto());
       }
+    } else if (code == Code.PROTO || code == Code.ENUM) {
+      proto.setProtoTypeFqn(protoTypeFqn);
     }
+
     return proto.build();
   }
 
   static Type fromProto(com.google.spanner.v1.Type proto) {
     Code typeCode = Code.fromProto(proto.getCode(), proto.getTypeAnnotation());
     if (isPrimitiveTypeCodeSupported(typeCode)) {
-      System.out.format("Type from map: %s\n", CODE_TO_PRIMITIVE_TYPE.get(typeCode));
       return CODE_TO_PRIMITIVE_TYPE.get(typeCode);
     }
     switch (typeCode) {
+      case PROTO:
+        return proto(proto.getProtoTypeFqn());
+      case ENUM:
+        return protoEnum(proto.getProtoTypeFqn());
       case ARRAY:
         checkArgument(
             proto.hasArrayElementType(),
