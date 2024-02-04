@@ -25,6 +25,7 @@ import com.google.cloud.Timestamp;
 import com.google.common.testing.EqualsTester;
 import com.google.protobuf.ListValue;
 import com.google.protobuf.NullValue;
+import java.math.BigDecimal;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -47,6 +48,7 @@ public class KeyTest {
     assertThat(k.getParts()).containsExactly("a", null, "c").inOrder();
 
     // All supported Java types: note coercion to canonical types.
+    String numeric = "3.141592";
     String timestamp = "2015-09-15T00:00:00Z";
     String date = "2015-09-15";
     String json = "{\"color\":\"red\",\"value\":\"#f00\"}";
@@ -58,12 +60,13 @@ public class KeyTest {
             64L,
             2.0f,
             4.0d,
+            new BigDecimal(numeric),
             "x",
             json,
             ByteArray.copyFrom("y"),
             Timestamp.parseTimestamp(timestamp),
             Date.parseDate(date));
-    assertThat(k.size()).isEqualTo(11);
+    assertThat(k.size()).isEqualTo(12);
     assertThat(k.getParts())
         .containsExactly(
             null,
@@ -72,6 +75,7 @@ public class KeyTest {
             64L,
             2.0d,
             4.0d,
+            BigDecimal.valueOf(3141592, 6),
             "x",
             json,
             ByteArray.copyFrom("y"),
@@ -87,6 +91,7 @@ public class KeyTest {
 
   @Test
   public void builder() {
+    String numeric = "3.141592";
     String timestamp = "2015-09-15T00:00:00Z";
     String date = "2015-09-15";
     String json = "{\"color\":\"red\",\"value\":\"#f00\"}";
@@ -98,13 +103,14 @@ public class KeyTest {
             .append(64L)
             .append(2.0f)
             .append(4.0d)
+            .append(new BigDecimal(numeric))
             .append("x")
             .append(json)
             .append(ByteArray.copyFrom("y"))
             .append(Timestamp.parseTimestamp(timestamp))
             .append(Date.parseDate(date))
             .build();
-    assertThat(k.size()).isEqualTo(11);
+    assertThat(k.size()).isEqualTo(12);
     assertThat(k.getParts())
         .containsExactly(
             null,
@@ -113,6 +119,7 @@ public class KeyTest {
             64L,
             2.0d,
             4.0d,
+            BigDecimal.valueOf(3141592, 6),
             "x",
             json,
             ByteArray.copyFrom("y"),
@@ -135,6 +142,7 @@ public class KeyTest {
     assertThat(Key.of(true).toString()).isEqualTo("[true]");
     assertThat(Key.of(32).toString()).isEqualTo("[32]");
     assertThat(Key.of(2.0).toString()).isEqualTo("[2.0]");
+    assertThat(Key.of(new BigDecimal("3.14")).toString()).isEqualTo("[3.14]");
     assertThat(Key.of("xyz").toString()).isEqualTo("[xyz]");
     assertThat(Key.of("{\"color\":\"red\",\"value\":\"#f00\"}").toString())
         .isEqualTo("[{\"color\":\"red\",\"value\":\"#f00\"}]");
@@ -160,6 +168,7 @@ public class KeyTest {
         Key.newBuilder().append((Boolean) null).build(),
         Key.newBuilder().append((Long) null).build(),
         Key.newBuilder().append((Double) null).build(),
+        Key.newBuilder().append((BigDecimal) null).build(),
         Key.newBuilder().append((String) null).build(),
         Key.newBuilder().append((ByteArray) null).build(),
         Key.newBuilder().append((Timestamp) null).build(),
@@ -173,6 +182,10 @@ public class KeyTest {
     tester.addEqualityGroup(Key.of(1, 2));
     tester.addEqualityGroup(Key.of(1.0f), Key.of(1.0d), Key.newBuilder().append(1.0).build());
     tester.addEqualityGroup(Key.of(2.0f), Key.of(2.0d), Key.newBuilder().append(2.0).build());
+    tester.addEqualityGroup(
+        Key.of(new BigDecimal("3.141592")),
+        Key.of(BigDecimal.valueOf(3141592, 6)),
+        Key.newBuilder().append(new BigDecimal("3141592e-6")).build());
     tester.addEqualityGroup(Key.of("a"), Key.newBuilder().append("a").build());
     tester.addEqualityGroup(Key.of("a", "b", "c"));
     tester.addEqualityGroup(
@@ -196,6 +209,7 @@ public class KeyTest {
     reserializeAndAssert(Key.of(true));
     reserializeAndAssert(Key.of(32));
     reserializeAndAssert(Key.of(2.0));
+    reserializeAndAssert(Key.of(new BigDecimal("3.141592")));
     reserializeAndAssert(Key.of("xyz"));
     reserializeAndAssert(Key.of("{\"color\":\"red\",\"value\":\"#f00\"}"));
     reserializeAndAssert(Key.of(ByteArray.copyFrom("xyz")));
@@ -216,6 +230,7 @@ public class KeyTest {
             .append(64L)
             .append(2.0f)
             .append(4.0d)
+            .append(new BigDecimal("6.62607004e-34"))
             .append("x")
             .append("{\"color\":\"red\",\"value\":\"#f00\"}")
             .append(ByteArray.copyFrom("y"))
@@ -229,6 +244,7 @@ public class KeyTest {
     builder.addValuesBuilder().setStringValue("64");
     builder.addValuesBuilder().setNumberValue(2.0f);
     builder.addValuesBuilder().setNumberValue(4.0d);
+    builder.addValuesBuilder().setStringValue("6.62607004E-34");
     builder.addValuesBuilder().setStringValue("x");
     builder.addValuesBuilder().setStringValue("{\"color\":\"red\",\"value\":\"#f00\"}");
     builder.addValuesBuilder().setStringValue("eQ==");

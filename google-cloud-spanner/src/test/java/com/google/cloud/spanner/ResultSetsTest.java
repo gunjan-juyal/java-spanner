@@ -53,6 +53,7 @@ public class ResultSetsTest {
   @Test
   public void resultSetIteration() {
     double doubleVal = 1.2;
+    BigDecimal bigDecimalVal = BigDecimal.valueOf(123, 2);
     String stringVal = "stringVal";
     String jsonVal = "{\"color\":\"red\",\"value\":\"#f00\"}";
     SingerInfo protoMessageVal =
@@ -70,6 +71,13 @@ public class ResultSetsTest {
     boolean[] boolArray = {true, false, true, true, false};
     long[] longArray = {Long.MAX_VALUE, Long.MIN_VALUE, 0, 1, -1};
     double[] doubleArray = {Double.MIN_VALUE, Double.MAX_VALUE, 0, 1, -1, 1.2341};
+    BigDecimal[] bigDecimalArray = {
+        BigDecimal.valueOf(1, Integer.MAX_VALUE),
+        BigDecimal.valueOf(1, Integer.MIN_VALUE),
+        BigDecimal.ZERO,
+        BigDecimal.TEN,
+        BigDecimal.valueOf(3141592, 6)
+    };
     ByteArray[] byteArray = {
       ByteArray.copyFrom("123"), ByteArray.copyFrom("456"), ByteArray.copyFrom("789")
     };
@@ -94,6 +102,7 @@ public class ResultSetsTest {
             Type.StructField.of("f2", Type.int64()),
             Type.StructField.of("f3", Type.bool()),
             Type.StructField.of("doubleVal", Type.float64()),
+            Type.StructField.of("bigDecimalVal", Type.numeric()),
             Type.StructField.of("stringVal", Type.string()),
             Type.StructField.of("jsonVal", Type.json()),
             Type.StructField.of("pgJsonbVal", Type.pgJsonb()),
@@ -107,6 +116,7 @@ public class ResultSetsTest {
             Type.StructField.of("boolArray", Type.array(Type.bool())),
             Type.StructField.of("longArray", Type.array(Type.int64())),
             Type.StructField.of("doubleArray", Type.array(Type.float64())),
+            Type.StructField.of("bigDecimalArray", Type.array(Type.numeric())),
             Type.StructField.of("byteArray", Type.array(Type.bytes())),
             Type.StructField.of("timestampArray", Type.array(Type.timestamp())),
             Type.StructField.of("dateArray", Type.array(Type.date())),
@@ -128,6 +138,8 @@ public class ResultSetsTest {
             .to(Value.bool(true))
             .set("doubleVal")
             .to(Value.float64(doubleVal))
+            .set("bigDecimalVal")
+            .to(Value.numeric(bigDecimalVal))
             .set("stringVal")
             .to(stringVal)
             .set("jsonVal")
@@ -150,6 +162,8 @@ public class ResultSetsTest {
             .to(Value.int64Array(longArray))
             .set("doubleArray")
             .to(Value.float64Array(doubleArray))
+            .set("bigDecimalArray")
+            .to(Value.numericArray(Arrays.asList(bigDecimalArray)))
             .set("byteArray")
             .to(Value.bytesArray(Arrays.asList(byteArray)))
             .set("timestampArray")
@@ -181,6 +195,8 @@ public class ResultSetsTest {
             .to(Value.bool(null))
             .set("doubleVal")
             .to(Value.float64(doubleVal))
+            .set("bigDecimalVal")
+            .to(Value.numeric(bigDecimalVal))
             .set("stringVal")
             .to(stringVal)
             .set("jsonVal")
@@ -203,6 +219,8 @@ public class ResultSetsTest {
             .to(Value.int64Array(longArray))
             .set("doubleArray")
             .to(Value.float64Array(doubleArray))
+            .set("bigDecimalArray")
+            .to(Value.numericArray(Arrays.asList(bigDecimalArray)))
             .set("byteArray")
             .to(Value.bytesArray(Arrays.asList(byteArray)))
             .set("timestampArray")
@@ -256,6 +274,10 @@ public class ResultSetsTest {
     assertThat(rs.getValue("doubleVal").getFloat64()).isWithin(0.0).of(doubleVal);
     assertThat(rs.getDouble(columnIndex)).isWithin(0.0).of(doubleVal);
     assertThat(rs.getValue(columnIndex++).getFloat64()).isWithin(0.0).of(doubleVal);
+    assertThat(rs.getBigDecimal("bigDecimalVal")).isEqualTo(new BigDecimal("1.23"));
+    assertThat(rs.getValue("bigDecimalVal")).isEqualTo(Value.numeric(new BigDecimal("1.23")));
+    assertThat(rs.getBigDecimal(columnIndex)).isEqualTo(new BigDecimal("1.23"));
+    assertThat(rs.getValue(columnIndex++)).isEqualTo(Value.numeric(new BigDecimal("1.23")));
     assertThat(rs.getString(columnIndex)).isEqualTo(stringVal);
     assertThat(rs.getValue(columnIndex++)).isEqualTo(Value.string(stringVal));
     assertThat(rs.getString("stringVal")).isEqualTo(stringVal);
@@ -316,6 +338,12 @@ public class ResultSetsTest {
     assertThat(rs.getValue("doubleArray")).isEqualTo(Value.float64Array(doubleArray));
     assertThat(rs.getDoubleList(columnIndex++)).isEqualTo(Doubles.asList(doubleArray));
     assertThat(rs.getDoubleList("doubleArray")).isEqualTo(Doubles.asList(doubleArray));
+    assertThat(rs.getBigDecimalList(columnIndex)).isEqualTo(Arrays.asList(bigDecimalArray));
+    assertThat(rs.getValue(columnIndex++))
+        .isEqualTo(Value.numericArray(Arrays.asList(bigDecimalArray)));
+    assertThat(rs.getBigDecimalList("bigDecimalArray")).isEqualTo(Arrays.asList(bigDecimalArray));
+    assertThat(rs.getValue("bigDecimalArray"))
+        .isEqualTo(Value.numericArray(Arrays.asList(bigDecimalArray)));
     assertThat(rs.getBytesList(columnIndex)).isEqualTo(Arrays.asList(byteArray));
     assertThat(rs.getValue(columnIndex++)).isEqualTo(Value.bytesArray(Arrays.asList(byteArray)));
     assertThat(rs.getBytesList("byteArray")).isEqualTo(Arrays.asList(byteArray));

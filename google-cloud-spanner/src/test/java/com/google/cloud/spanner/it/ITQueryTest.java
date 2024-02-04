@@ -371,48 +371,68 @@ public class ITQueryTest {
 
   @Test
   public void bindNumeric() {
-    assumeTrue(dialect.dialect == Dialect.POSTGRESQL); // TODO(gunjj@) Revert once NUMERIC support has been added
     assumeFalse("Emulator does not yet support NUMERIC", EmulatorSpannerHelper.isUsingEmulator());
     BigDecimal b = new BigDecimal("1.1");
     Statement.Builder statement = Statement.newBuilder(selectValueQuery);
-    Type expectedType = Type.pgNumeric();
+    Type expectedType = Type.numeric();
     Object expectedValue = b;
-    expectedValue = Value.pgNumeric(b.toString());
-    statement.bind("p1").to(Value.pgNumeric(b.toString()));
+    if (dialect.dialect == Dialect.POSTGRESQL) {
+      expectedType = Type.pgNumeric();
+      expectedValue = Value.pgNumeric(b.toString());
+      statement.bind("p1").to(Value.pgNumeric(b.toString()));
+    } else {
+      statement.bind("p1").to(b);
+    }
     Struct row = execute(statement, expectedType);
     assertThat(row.isNull(0)).isFalse();
     Object got;
-    got = row.getValue(0);
+    if (dialect.dialect == Dialect.POSTGRESQL) {
+      got = row.getValue(0);
+    } else {
+      got = row.getBigDecimal(0);
+    }
     assertThat(got).isEqualTo(expectedValue);
   }
 
   @Test
   public void bindNumericNull() {
-    assumeTrue(dialect.dialect == Dialect.POSTGRESQL); // TODO(gunjj@) Revert once NUMERIC support has been added
     assumeFalse("Emulator does not yet support NUMERIC", EmulatorSpannerHelper.isUsingEmulator());
     Statement.Builder statement = Statement.newBuilder(selectValueQuery);
-    Type expectedType = Type.pgNumeric();
-    statement.bind("p1").to(Value.pgNumeric(null));
+    Type expectedType = Type.numeric();
+    if (dialect.dialect == Dialect.POSTGRESQL) {
+      expectedType = Type.pgNumeric();
+      statement.bind("p1").to(Value.pgNumeric(null));
+    } else {
+      statement.bind("p1").to((BigDecimal) null);
+    }
     Struct row = execute(statement, expectedType);
     assertThat(row.isNull(0)).isTrue();
   }
 
   @Test
   public void bindNumeric_doesNotPreservePrecision() {
-    assumeTrue(dialect.dialect == Dialect.POSTGRESQL); // TODO(gunjj@) Revert once NUMERIC support has been added
     assumeFalse("Emulator does not yet support NUMERIC", EmulatorSpannerHelper.isUsingEmulator());
     BigDecimal b = new BigDecimal("1.10");
     Statement.Builder statement = Statement.newBuilder(selectValueQuery);
-    Type expectedType = Type.pgNumeric();
+    Type expectedType = Type.numeric();
     // Cloud Spanner does not store precision, and will therefore return 1.10 as 1.1.
     Object expectedValue = b.stripTrailingZeros();
-    // Cloud Spanner with PG dialect store precision, and will therefore return 1.10.
-    expectedValue = Value.pgNumeric(b.toString());
-    statement.bind("p1").to(Value.pgNumeric(b.toString()));
+    if (dialect.dialect == Dialect.POSTGRESQL) {
+      expectedType = Type.pgNumeric();
+      // Cloud Spanner with PG dialect store precision, and will therefore return 1.10.
+      expectedValue = Value.pgNumeric(b.toString());
+      statement.bind("p1").to(Value.pgNumeric(b.toString()));
+    } else {
+      statement.bind("p1").to(b);
+    }
     Struct row = execute(statement, expectedType);
     assertThat(row.isNull(0)).isFalse();
     Object got;
-    got = row.getValue(0);
+    if (dialect.dialect == Dialect.POSTGRESQL) {
+      got = row.getValue(0);
+    } else {
+      got = row.getBigDecimal(0);
+    }
     assertThat(got).isNotEqualTo(b);
     assertThat(got).isEqualTo(expectedValue);
   }
@@ -692,6 +712,21 @@ public class ITQueryTest {
   }
 
   @Test
+  public void bindNumericArrayGoogleStandardSQL() {
+    assumeTrue(dialect.dialect == Dialect.GOOGLE_STANDARD_SQL);
+    assumeFalse("Emulator does not yet support NUMERIC", EmulatorSpannerHelper.isUsingEmulator());
+    BigDecimal b1 = new BigDecimal("3.14");
+    BigDecimal b2 = new BigDecimal("6.626");
+
+    Struct row =
+        execute(
+            Statement.newBuilder(selectValueQuery).bind("p1").toNumericArray(asList(b1, b2, null)),
+            Type.array(Type.numeric()));
+    assertThat(row.isNull(0)).isFalse();
+    assertThat(row.getBigDecimalList(0)).containsExactly(b1, b2, null).inOrder();
+  }
+
+  @Test
   public void bindNumericArrayPostgreSQL() {
     assumeTrue(dialect.dialect == Dialect.POSTGRESQL);
     assumeFalse("Emulator does not yet support NUMERIC", EmulatorSpannerHelper.isUsingEmulator());
@@ -703,6 +738,20 @@ public class ITQueryTest {
             Type.array(Type.pgNumeric()));
     assertThat(row.isNull(0)).isFalse();
     assertThat(row.getStringList(0)).containsExactly("3.14", "6.626", null).inOrder();
+  }
+
+  @Test
+  public void bindNumericArrayEmptyGoogleStandardSQL() {
+    assumeTrue(dialect.dialect == Dialect.GOOGLE_STANDARD_SQL);
+    assumeFalse("Emulator does not yet support NUMERIC", EmulatorSpannerHelper.isUsingEmulator());
+    Struct row =
+        execute(
+            Statement.newBuilder(selectValueQuery)
+                .bind("p1")
+                .toNumericArray(Collections.emptyList()),
+            Type.array(Type.numeric()));
+    assertThat(row.isNull(0)).isFalse();
+    assertThat(row.getBigDecimalList(0)).containsExactly();
   }
 
   @Test
@@ -720,6 +769,16 @@ public class ITQueryTest {
   }
 
   @Test
+  public void bindNumericArrayNullGoogleStandardSQL() {
+    assumeTrue(dialect.dialect == Dialect.GOOGLE_STANDARD_SQL);
+    Struct row =
+        execute(
+            Statement.newBuilder(selectValueQuery).bind("p1").toNumericArray(null),
+            Type.array(Type.numeric()));
+    assertThat(row.isNull(0)).isTrue();
+  }
+
+  @Test
   public void bindNumericArrayNullPostgreSQL() {
     assumeTrue(dialect.dialect == Dialect.POSTGRESQL);
     Struct row =
@@ -727,6 +786,25 @@ public class ITQueryTest {
             Statement.newBuilder(selectValueQuery).bind("p1").toPgNumericArray(null),
             Type.array(Type.pgNumeric()));
     assertThat(row.isNull(0)).isTrue();
+  }
+
+  @Test
+  public void bindNumericArray_doesNotPreservePrecision() {
+    assumeFalse(
+        "array numeric binding is not supported on POSTGRESQL",
+        dialect.dialect == Dialect.POSTGRESQL);
+    assumeFalse("Emulator does not yet support NUMERIC", EmulatorSpannerHelper.isUsingEmulator());
+    BigDecimal b1 = new BigDecimal("3.14");
+    BigDecimal b2 = new BigDecimal("6.626070");
+
+    Struct row =
+        execute(
+            Statement.newBuilder(selectValueQuery).bind("p1").toNumericArray(asList(b1, b2, null)),
+            Type.array(Type.numeric()));
+    assertThat(row.isNull(0)).isFalse();
+    assertThat(row.getBigDecimalList(0))
+        .containsExactly(b1.stripTrailingZeros(), b2.stripTrailingZeros(), null)
+        .inOrder();
   }
 
   @Test

@@ -28,7 +28,8 @@ public enum TypeMapper {
   BOOL(Code.BOOL, KindCase.BOOL_VALUE, BooleanConverter.class),
   STRING(Code.STRING, KindCase.STRING_VALUE, StringConverter.class),
   JSON(Code.JSON, KindCase.STRING_VALUE, StringConverter.class),
-  PG_JSONB(Code.PG_JSONB, KindCase.STRING_VALUE, StringConverter.class); // TODO(gunjj@) Add other mappers
+  PG_JSONB(Code.PG_JSONB, KindCase.STRING_VALUE, StringConverter.class),
+  NUMERIC(Code.NUMERIC, KindCase.STRING_VALUE, NumericConverter.class);
 
   /** KindCase of serialization in gRPC wire encoding **/
   public KindCase getProtoKindCase() {

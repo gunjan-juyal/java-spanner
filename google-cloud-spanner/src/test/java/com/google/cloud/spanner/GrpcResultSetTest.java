@@ -43,6 +43,7 @@ import com.google.spanner.v1.QueryPlan;
 import com.google.spanner.v1.ResultSetMetadata;
 import com.google.spanner.v1.ResultSetStats;
 import com.google.spanner.v1.Transaction;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -737,6 +738,37 @@ public class GrpcResultSetTest {
   }
 
   @Test
+  public void getBigDecimal() {
+    consumer.onPartialResultSet(
+        PartialResultSet.newBuilder()
+            .setMetadata(makeMetadata(Type.struct(Type.StructField.of("f", Type.numeric()))))
+            .addValues(
+                Value.numeric(
+                        new BigDecimal(
+                            "-" + Strings.repeat("9", 29) + "." + Strings.repeat("9", 9)))
+                    .toProto())
+            .addValues(
+                Value.numeric(
+                        new BigDecimal(Strings.repeat("9", 29) + "." + Strings.repeat("9", 9)))
+                    .toProto())
+            .addValues(Value.numeric(BigDecimal.ZERO).toProto())
+            .addValues(Value.numeric(new BigDecimal("1.23456")).toProto())
+            .build());
+    consumer.onCompleted();
+
+    assertThat(resultSet.next()).isTrue();
+    assertThat(resultSet.getBigDecimal(0).toPlainString())
+        .isEqualTo("-99999999999999999999999999999.999999999");
+    assertThat(resultSet.next()).isTrue();
+    assertThat(resultSet.getBigDecimal(0).toPlainString())
+        .isEqualTo("99999999999999999999999999999.999999999");
+    assertThat(resultSet.next()).isTrue();
+    assertThat(resultSet.getBigDecimal(0)).isEqualTo(BigDecimal.ZERO);
+    assertThat(resultSet.next()).isTrue();
+    assertThat(resultSet.getBigDecimal(0)).isEqualTo(BigDecimal.valueOf(123456, 5));
+  }
+
+  @Test
   public void getLong() {
     consumer.onPartialResultSet(
         PartialResultSet.newBuilder()
@@ -925,6 +957,26 @@ public class GrpcResultSetTest {
         .usingTolerance(0.0)
         .containsExactly(doubleArray)
         .inOrder();
+  }
+
+  @Test
+  public void getBigDecimalList() {
+    List<BigDecimal> bigDecimalsList = new ArrayList<>();
+    bigDecimalsList.add(BigDecimal.valueOf(Double.MIN_VALUE));
+    bigDecimalsList.add(BigDecimal.valueOf(Double.MAX_VALUE));
+    bigDecimalsList.add(BigDecimal.ZERO);
+    bigDecimalsList.add(new BigDecimal("1.23456"));
+
+    consumer.onPartialResultSet(
+        PartialResultSet.newBuilder()
+            .setMetadata(
+                makeMetadata(Type.struct(Type.StructField.of("f", Type.array(Type.numeric())))))
+            .addValues(Value.numericArray(bigDecimalsList).toProto())
+            .build());
+    consumer.onCompleted();
+
+    assertThat(resultSet.next()).isTrue();
+    assertThat(resultSet.getBigDecimalList(0)).isEqualTo(bigDecimalsList);
   }
 
   @Test

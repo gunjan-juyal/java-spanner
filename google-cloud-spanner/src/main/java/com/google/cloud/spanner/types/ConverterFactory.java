@@ -35,6 +35,8 @@ public class ConverterFactory {
       return StringConverter.getInstance();
     } else if (javaTypeConverter.equals(BooleanConverter.class)) {
       return BooleanConverter.getInstance();
+    } else if (javaTypeConverter.equals(NumericConverter.class)) {
+      return NumericConverter.getInstance();
     }
     else {
       throw new RuntimeException("Not implemented");

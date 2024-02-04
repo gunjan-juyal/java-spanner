@@ -61,6 +61,7 @@ import com.google.rpc.Code;
 import com.google.rpc.Status;
 import com.google.spanner.v1.BatchWriteResponse;
 import io.grpc.Context;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -657,7 +658,11 @@ public class ITWriteTest {
     write(baseInsert().set("NumericValue").to("3.141592").build());
     Struct row = readLastRow("NumericValue");
     assertThat(row.isNull(0)).isFalse();
-    assertThat(row.getString(0)).isEqualTo("3.141592");
+    if (dialect.dialect == Dialect.GOOGLE_STANDARD_SQL) {
+      assertThat(row.getBigDecimal(0)).isEqualTo(BigDecimal.valueOf(3141592, 6));
+    } else {
+      assertThat(row.getString(0)).isEqualTo("3.141592");
+    }
   }
 
   @Test
@@ -930,6 +935,63 @@ public class ITWriteTest {
     Struct row = readLastRow("DateArrayValue");
     assertThat(row.isNull(0)).isFalse();
     assertThat(row.getDateList(0)).containsExactly(d1, null, d2).inOrder();
+  }
+
+  @Test
+  public void writeNumericArrayNull() {
+    write(baseInsert().set("NumericArrayValue").toNumericArray(null).build());
+    Struct row = readLastRow("NumericArrayValue");
+    assertThat(row.isNull(0)).isTrue();
+  }
+
+  @Test
+  public void writeNumericArrayEmpty() {
+    write(baseInsert().set("NumericArrayValue").toNumericArray(ImmutableList.of()).build());
+    Struct row = readLastRow("NumericArrayValue");
+    assertThat(row.isNull(0)).isFalse();
+    if (dialect.dialect == Dialect.GOOGLE_STANDARD_SQL) {
+      assertThat(row.getBigDecimalList(0)).containsExactly();
+    } else {
+      assertThat(row.getStringList(0)).containsExactly();
+    }
+  }
+
+  @Test
+  public void writeNumericArray() {
+    write(
+        baseInsert()
+            .set("NumericArrayValue")
+            .toNumericArray(
+                Arrays.asList(new BigDecimal("3.141592"), new BigDecimal("6.626"), null))
+            .build());
+    Struct row = readLastRow("NumericArrayValue");
+    assertThat(row.isNull(0)).isFalse();
+    if (dialect.dialect == Dialect.GOOGLE_STANDARD_SQL) {
+      assertThat(row.getBigDecimalList(0))
+          .containsExactly(BigDecimal.valueOf(3141592, 6), BigDecimal.valueOf(6626, 3), null);
+    } else {
+      assertThat(row.getStringList(0)).containsExactly("3.141592", "6.626", null).inOrder();
+    }
+  }
+
+  @Test
+  public void writeNumericArrayNoNulls() {
+    write(
+        baseInsert()
+            .set("NumericArrayValue")
+            .toNumericArray(Arrays.asList(new BigDecimal("3.141592"), new BigDecimal("6.626")))
+            .build());
+    Struct row = readLastRow("NumericArrayValue");
+    assertThat(row.isNull(0)).isFalse();
+    if (dialect.dialect == Dialect.GOOGLE_STANDARD_SQL) {
+      assertThat(row.getBigDecimalList(0))
+          .containsExactly(BigDecimal.valueOf(3141592, 6), BigDecimal.valueOf(6626, 3));
+    } else {
+      assertThat(row.getStringList(0))
+          .containsExactly(
+              BigDecimal.valueOf(3141592, 6).toString(), BigDecimal.valueOf(6626, 3).toString())
+          .inOrder();
+    }
   }
 
   @Test
