@@ -460,116 +460,71 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
         String fieldName = field.getName();
         Object value = rowData.get(i);
         Type fieldType = field.getType();
-        switch (fieldType.getCode()) {
-          case BOOL:
-            builder.set(fieldName).to((Boolean) value);
-            break;
-          case INT64:
-            builder.set(fieldName).to((Long) value);
-            break;
-          case FLOAT64:
-            builder.set(fieldName).to((Double) value);
-            break;
-          case NUMERIC:
-            builder.set(fieldName).to((BigDecimal) value);
-            break;
-          case PG_NUMERIC:
-            builder.set(fieldName).to((String) value);
-            break;
-          case STRING:
-            builder.set(fieldName).to((String) value);
-            break;
-          case JSON:
-            builder.set(fieldName).to(Value.json((String) value));
-            break;
-          case PROTO:
-            builder
-                .set(fieldName)
-                .to(Value.protoMessage((ByteArray) value, fieldType.getProtoTypeFqn()));
-            break;
-          case ENUM:
-            builder.set(fieldName).to(Value.protoEnum((Long) value, fieldType.getProtoTypeFqn()));
-            break;
-          case PG_JSONB:
-            builder.set(fieldName).to(Value.pgJsonb((String) value));
-            break;
-          case BYTES:
-            builder
-                .set(fieldName)
-                .to(
-                    Value.bytesFromBase64(
-                        value == null ? null : ((LazyByteArray) value).getBase64String()));
-            break;
-          case TIMESTAMP:
-            builder.set(fieldName).to((Timestamp) value);
-            break;
-          case DATE:
-            builder.set(fieldName).to((Date) value);
-            break;
-          case ARRAY:
-            final Type elementType = fieldType.getArrayElementType();
-            switch (elementType.getCode()) {
-              case BOOL:
-                builder.set(fieldName).toBoolArray((Iterable<Boolean>) value);
-                break;
-              case INT64:
-              case ENUM:
-                builder.set(fieldName).toInt64Array((Iterable<Long>) value);
-                break;
-              case FLOAT64:
-                builder.set(fieldName).toFloat64Array((Iterable<Double>) value);
-                break;
-              case NUMERIC:
-                builder.set(fieldName).toNumericArray((Iterable<BigDecimal>) value);
-                break;
-              case PG_NUMERIC:
-                builder.set(fieldName).toPgNumericArray((Iterable<String>) value);
-                break;
-              case STRING:
-                builder.set(fieldName).toStringArray((Iterable<String>) value);
-                break;
-              case JSON:
-                builder.set(fieldName).toJsonArray((Iterable<String>) value);
-                break;
-              case PG_JSONB:
-                builder.set(fieldName).toPgJsonbArray((Iterable<String>) value);
-                break;
-              case BYTES:
-              case PROTO:
-                builder
-                    .set(fieldName)
-                    .toBytesArrayFromBase64(
-                        value == null
-                            ? null
-                            : ((List<LazyByteArray>) value)
-                                .stream()
+        // TODO(gunjj@) Make this generic for primitive types
+        if (Type.isPrimitiveTypeCodeSupported(fieldType.getCode())) {
+          // Bytes needs specific decoding
+          if (fieldType.getCode() == Type.Code.BYTES) {
+            builder.set(fieldName)
+                .to(fieldType.getCode(), value == null ? null : ((LazyByteArray) value).getBase64String()
+                );
+          } else {
+            builder.set(fieldName).to(fieldType.getCode(), value);
+          }
+        } else {
+          switch (fieldType.getCode()) {
+            case PROTO:
+              builder
+                  .set(fieldName)
+                  .to(Value.protoMessage((ByteArray) value, fieldType.getProtoTypeFqn()));
+              break;
+            case ENUM:
+              builder.set(fieldName).to(Value.protoEnum((Long) value, fieldType.getProtoTypeFqn()));
+              break;
+            case ARRAY:
+              final Type elementType = fieldType.getArrayElementType();
+              if (elementType.getCode() != Type.Code.BYTES && Type.isPrimitiveTypeCodeSupported(
+                  elementType.getCode())) {
+                // Bytes needs specific decoding
+                // TODO(gunjj@): Consider using toPrimitiveArrayValue() for this also
+                builder.set(fieldName)
+                    .toPrimitiveArrayOfType((Iterable<?>) value, elementType.getCode());
+              } else {
+                switch (elementType.getCode()) {
+                  case ENUM:
+                    builder.set(fieldName).toInt64Array((Iterable<Long>) value);
+                    break;
+                  case BYTES:
+                  case PROTO:
+                    builder
+                        .set(fieldName)
+                        .toBytesArrayFromBase64(
+                            value == null
+                                ? null
+                                : ((List<LazyByteArray>) value)
+                                    .stream()
                                     .map(
                                         element ->
                                             element == null ? null : element.getBase64String())
                                     .collect(Collectors.toList()));
-                break;
-              case TIMESTAMP:
-                builder.set(fieldName).toTimestampArray((Iterable<Timestamp>) value);
-                break;
-              case DATE:
-                builder.set(fieldName).toDateArray((Iterable<Date>) value);
-                break;
-              case STRUCT:
-                builder.set(fieldName).toStructArray(elementType, (Iterable<Struct>) value);
-                break;
-              default:
-                throw new AssertionError("Unhandled array type code: " + elementType);
-            }
-            break;
-          case STRUCT:
-            if (value == null) {
-              builder.set(fieldName).to(fieldType, null);
-            } else {
-              builder.set(fieldName).to((Struct) value);
-            }
-            break;
-          default:
-            throw new AssertionError("Unhandled type code: " + fieldType.getCode());
+                    break;
+                  case STRUCT:
+                    builder.set(fieldName).toStructArray(elementType, (Iterable<Struct>) value);
+                    break;
+                  default:
+                    throw new AssertionError("Unhandled array type code: " + elementType);
+                }
+              }
+              break;
+            case STRUCT:
+              if (value == null) {
+                builder.set(fieldName).to(fieldType, null);
+              } else {
+                builder.set(fieldName).to((Struct) value);
+              }
+              break;
+            default:
+              throw new AssertionError("Unhandled type code: " + fieldType.getCode());
+          }
         }
       }
       return builder.build();
@@ -805,6 +760,7 @@ abstract class AbstractResultSet<R> extends AbstractStructReader implements Resu
       return (com.google.protobuf.Value) rowData.get(columnIndex);
     }
 
+    // TODO(gunjj@) Consider for refactoring
     @Override
     protected Value getValueInternal(int columnIndex) {
       final List<Type.StructField> structFields = getType().getStructFields();

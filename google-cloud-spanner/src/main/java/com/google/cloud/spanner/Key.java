@@ -174,32 +174,25 @@ public final class Key implements Serializable {
      * Appends an object following the same conversion rules as {@link Key#of(Object...)}. When
      * using the {@code Builder}, most code should prefer using the strongly typed {@code
      * append(...)} methods, for both performance and the benefit of compile-time checking.
+     *
+     *  TODO(gunjj) Check for any performance implications of replacing all strongly-typed instances with this one.
+     *   If there are negligible, then we can consider eliminating all statically typed append(Type) methods.
+     *   Need to rethink about compile-time type-checking benefits - is the code-bloat worth it?
      */
     public Builder appendObject(@Nullable Object value) {
       if (value == null) {
         append((Boolean) null);
-      } else if (value instanceof Boolean) {
-        append((Boolean) value);
-      } else if (value instanceof Integer) {
-        append((Integer) value);
-      } else if (value instanceof Long) {
-        append((Long) value);
-      } else if (value instanceof Float) {
-        append((Float) value);
-      } else if (value instanceof Double) {
-        append((Double) value);
-      } else if (value instanceof BigDecimal) {
-        append((BigDecimal) value);
-      } else if (value instanceof String) {
-        append((String) value);
-      } else if (value instanceof ByteArray) {
-        append((ByteArray) value);
-      } else if (value instanceof Timestamp) {
-        append((Timestamp) value);
-      } else if (value instanceof Date) {
-        append((Date) value);
       } else if (value instanceof ProtocolMessageEnum) {
         append((ProtocolMessageEnum) value);
+      } else if (Type.isPrimitiveTypeClassSupported(value)) {
+        // Special handling for 32-bit numbers only 64-bit variants are supported
+        if (value instanceof Integer) {
+          buffer.add((long)((Integer)value).intValue());
+        } else if (value instanceof Float) {
+          buffer.add((double)((Float)value).floatValue());
+        } else {
+          buffer.add(value);
+        }
       } else {
         throw new IllegalArgumentException(
             "Unsupported type ["

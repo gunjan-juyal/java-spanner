@@ -32,6 +32,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.ByteArray;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.AbortedException;
 import com.google.cloud.spanner.CommitResponse;
@@ -701,7 +702,7 @@ public class ReadWriteTransactionTest {
                     .set("JSON")
                     .to(Value.json(emptyArrayJson))
                     .set("PROTO")
-                    .to(null, SingerInfo.getDescriptor())
+                    .to((ByteArray) null, SingerInfo.getDescriptor())
                     .set("PROTOENUM")
                     .to(Genre.POP)
                     .build()));

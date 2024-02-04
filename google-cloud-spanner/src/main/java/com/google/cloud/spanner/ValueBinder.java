@@ -19,11 +19,13 @@ package com.google.cloud.spanner;
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.Type.Code;
 import com.google.protobuf.AbstractMessage;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.EnumDescriptor;
 import com.google.protobuf.ProtocolMessageEnum;
 import java.math.BigDecimal;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -59,6 +61,18 @@ public abstract class ValueBinder<R> {
   /** Binds a {@link Value} */
   public R to(Value value) {
     return handle(value);
+  }
+
+  /**
+   * Helper method that binds {@code value} to a generic {@link Value} of type {@link Code}. The
+   * following primitive types are supported: BOOL, INT64, FLOAT64, NUMERIC, PG_NUMERIC, STRING,
+   * JSON, PG_JSONB, BYTES, TIMESTAMP and DATE.
+   * {@code type} must be first parameter since {@code primitiveOfType} method in {@link Value} is
+   * validated against a paired {@code to} method in {@link ValueBinder}, and the inverse-order of
+   * parameters conflicts with other binary methods when a null value is passed as {@code value}
+   */
+  public R to(@Nonnull Code type, @Nullable Object value) {
+    return handle(Value.primitiveOfType(type, value));
   }
 
   /** Binds to {@code Value.bool(value)} */
@@ -112,6 +126,10 @@ public abstract class ValueBinder<R> {
   }
 
   /** Binds to {@code Value.protoMessage(value, descriptor)} */
+  // TODO(gunjj@) This signature can potentially conflict with another method introduced later:
+  //   to(ByteArray, Descriptor), for example when the first parameter is `null`. However, this will
+  //   be caught at compile-time and fixed by explicit casts to call the preferred method. Should we
+  //   change the generic-binder-method signature to improve developer experience?
   public R to(@Nullable ByteArray v, Descriptor descriptor) {
     return handle(Value.protoMessage(v, descriptor));
   }
@@ -166,6 +184,15 @@ public abstract class ValueBinder<R> {
    */
   public R to(Type type, @Nullable Struct value) {
     return handle(Value.struct(type, value));
+  }
+
+  /**
+   * Helper method that binds {@code value} to a generic {@link Value} of type {@link Code}. Arrays
+   * of the following primitive types are supported: BOOL, INT64, FLOAT64, NUMERIC, PG_NUMERIC,
+   * STRING, JSON, PG_JSONB, BYTES, TIMESTAMP and DATE.
+   */
+  public R toPrimitiveArrayOfType(@Nullable Iterable<?> values, Code type) {
+    return handle(Value.primitiveArrayOfType(values, type));
   }
 
   /** Binds to {@code Value.boolArray(values)} */

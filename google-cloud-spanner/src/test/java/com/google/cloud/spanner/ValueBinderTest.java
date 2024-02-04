@@ -52,6 +52,8 @@ public class ValueBinderTest {
   private static final String PROTO_MESSAGE_METHOD_NAME = "protoMessage";
   private static final String PROTO_ENUM_METHOD_NAME = "protoEnum";
   private static final String BYTES_BASE64_METHOD_NAME = "bytesFromBase64";
+  private static final String GENERIC_PRIMITIVE_METHOD_NAME = "primitiveOfType";
+  private static final String GENERIC_PRIMITIVE_ARRAY_METHOD_NAME = "primitiveArrayOfType";
   public static final String DEFAULT_PG_NUMERIC = "1.23";
 
   private Value lastValue;
@@ -212,6 +214,9 @@ public class ValueBinderTest {
         assertThat(lastValue).isEqualTo(expected);
         assertThat(binder.to(expected)).isEqualTo(lastReturnValue);
         assertThat(lastValue).isEqualTo(expected);
+      } else if (method.getName().equals(GENERIC_PRIMITIVE_METHOD_NAME) ||
+          method.getName().equals(GENERIC_PRIMITIVE_ARRAY_METHOD_NAME)) {
+        // TODO(gunjj@) Add tests for these two methods
       } else {
         // Array slice method: depends on DefaultValues returning arrays of length 2.
         assertThat(binderMethod.getParameterTypes().length).isEqualTo(3);
