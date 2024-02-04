@@ -28,9 +28,14 @@ import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.AsyncResultSet.CallbackResponse;
+import com.google.cloud.spanner.SingerProto.Genre;
+import com.google.cloud.spanner.SingerProto.SingerInfo;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.protobuf.AbstractMessage;
+import com.google.protobuf.ProtocolMessageEnum;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -50,6 +55,13 @@ public class ResultSetsTest {
     double doubleVal = 1.2;
     String stringVal = "stringVal";
     String jsonVal = "{\"color\":\"red\",\"value\":\"#f00\"}";
+    SingerInfo protoMessageVal =
+        SingerInfo.newBuilder()
+            .setSingerId(111)
+            .setNationality("COUNTRY1")
+            .setGenre(Genre.FOLK)
+            .build();
+    ProtocolMessageEnum protoEnumVal = Genre.ROCK;
     String byteVal = "101";
     long usecs = 32343;
     int year = 2018;
@@ -71,6 +83,10 @@ public class ResultSetsTest {
     };
     String[] stringArray = {"abc", "def", "ghi"};
     String[] jsonArray = {"{}", "{\"color\":\"red\",\"value\":\"#f00\"}", "[]"};
+    AbstractMessage[] protoMessageArray = {
+      protoMessageVal, SingerInfo.newBuilder().setSingerId(1).build()
+    };
+    ProtocolMessageEnum[] protoEnumArray = {protoEnumVal, Genre.JAZZ};
 
     Type type =
         Type.struct(
@@ -84,6 +100,10 @@ public class ResultSetsTest {
             Type.StructField.of("byteVal", Type.bytes()),
             Type.StructField.of("timestamp", Type.timestamp()),
             Type.StructField.of("date", Type.date()),
+            Type.StructField.of(
+                "protoMessage", Type.proto(protoMessageVal.getDescriptorForType().getFullName())),
+            Type.StructField.of(
+                "protoEnum", Type.protoEnum(protoEnumVal.getDescriptorForType().getFullName())),
             Type.StructField.of("boolArray", Type.array(Type.bool())),
             Type.StructField.of("longArray", Type.array(Type.int64())),
             Type.StructField.of("doubleArray", Type.array(Type.float64())),
@@ -92,7 +112,12 @@ public class ResultSetsTest {
             Type.StructField.of("dateArray", Type.array(Type.date())),
             Type.StructField.of("stringArray", Type.array(Type.string())),
             Type.StructField.of("jsonArray", Type.array(Type.json())),
-            Type.StructField.of("pgJsonbArray", Type.array(Type.pgJsonb())));
+            Type.StructField.of("pgJsonbArray", Type.array(Type.pgJsonb())),
+            Type.StructField.of(
+                "protoMessageArray",
+                Type.array(Type.proto(SingerInfo.getDescriptor().getFullName()))),
+            Type.StructField.of(
+                "protoEnumArray", Type.array(Type.protoEnum(Genre.getDescriptor().getFullName()))));
     Struct struct1 =
         Struct.newBuilder()
             .set("f1")
@@ -115,6 +140,10 @@ public class ResultSetsTest {
             .to(Timestamp.ofTimeMicroseconds(usecs))
             .set("date")
             .to(Date.fromYearMonthDay(year, month, day))
+            .set("protoMessage")
+            .to(protoMessageVal)
+            .set("protoEnum")
+            .to(protoEnumVal)
             .set("boolArray")
             .to(Value.boolArray(boolArray))
             .set("longArray")
@@ -133,6 +162,14 @@ public class ResultSetsTest {
             .to(Value.jsonArray(Arrays.asList(jsonArray)))
             .set("pgJsonbArray")
             .to(Value.pgJsonbArray(Arrays.asList(jsonArray)))
+            .set("protoMessageArray")
+            .to(
+                Value.protoMessageArray(
+                    Arrays.asList(protoMessageArray), protoMessageVal.getDescriptorForType()))
+            .set("protoEnumArray")
+            .to(
+                Value.protoEnumArray(
+                    Arrays.asList(protoEnumArray), protoEnumVal.getDescriptorForType()))
             .build();
     Struct struct2 =
         Struct.newBuilder()
@@ -156,6 +193,10 @@ public class ResultSetsTest {
             .to(Timestamp.ofTimeMicroseconds(usecs))
             .set("date")
             .to(Date.fromYearMonthDay(year, month, day))
+            .set("protoMessage")
+            .to(protoMessageVal)
+            .set("protoEnum")
+            .to(protoEnumVal)
             .set("boolArray")
             .to(Value.boolArray(boolArray))
             .set("longArray")
@@ -174,6 +215,14 @@ public class ResultSetsTest {
             .to(Value.jsonArray(Arrays.asList(jsonArray)))
             .set("pgJsonbArray")
             .to(Value.pgJsonbArray(Arrays.asList(jsonArray)))
+            .set("protoMessageArray")
+            .to(
+                Value.protoMessageArray(
+                    Arrays.asList(protoMessageArray), protoMessageVal.getDescriptorForType()))
+            .set("protoEnumArray")
+            .to(
+                Value.protoEnumArray(
+                    Arrays.asList(protoEnumArray), protoEnumVal.getDescriptorForType()))
             .build();
     ResultSet rs = ResultSets.forRows(type, Arrays.asList(struct1, struct2));
 
@@ -236,6 +285,18 @@ public class ResultSetsTest {
         .isEqualTo(Value.date(Date.fromYearMonthDay(year, month, day)));
     assertThat(rs.getDate("date")).isEqualTo(Date.fromYearMonthDay(year, month, day));
     assertThat(rs.getValue("date")).isEqualTo(Value.date(Date.fromYearMonthDay(year, month, day)));
+
+    assertEquals(protoMessageVal, rs.getProtoMessage(columnIndex, SingerInfo.getDefaultInstance()));
+    assertEquals(Value.protoMessage(protoMessageVal), rs.getValue(columnIndex++));
+    assertEquals(
+        protoMessageVal, rs.getProtoMessage("protoMessage", SingerInfo.getDefaultInstance()));
+    assertEquals(Value.protoMessage(protoMessageVal), rs.getValue("protoMessage"));
+
+    assertEquals(protoEnumVal, rs.getProtoEnum(columnIndex, Genre::forNumber));
+    assertEquals(Value.protoEnum(protoEnumVal), rs.getValue(columnIndex++));
+    assertEquals(protoEnumVal, rs.getProtoEnum("protoEnum", Genre::forNumber));
+    assertEquals(Value.protoEnum(protoEnumVal), rs.getValue("protoEnum"));
+
     assertThat(rs.getBooleanArray(columnIndex)).isEqualTo(boolArray);
     assertThat(rs.getValue(columnIndex++)).isEqualTo(Value.boolArray(boolArray));
     assertThat(rs.getBooleanArray("boolArray")).isEqualTo(boolArray);
@@ -276,8 +337,28 @@ public class ResultSetsTest {
     assertThat(rs.getJsonList(columnIndex++)).isEqualTo(Arrays.asList(jsonArray));
     assertThat(rs.getJsonList("jsonArray")).isEqualTo(Arrays.asList(jsonArray));
 
-    assertEquals(Arrays.asList(jsonArray), rs.getPgJsonbList(columnIndex));
+    assertEquals(Arrays.asList(jsonArray), rs.getPgJsonbList(columnIndex++));
     assertEquals(Arrays.asList(jsonArray), rs.getPgJsonbList("pgJsonbArray"));
+
+    assertThat(rs.getProtoMessageList(columnIndex, SingerInfo.getDefaultInstance()))
+        .isEqualTo(Arrays.asList(protoMessageArray));
+    assertThat(rs.getValue(columnIndex++))
+        .isEqualTo(
+            Value.protoMessageArray(Arrays.asList(protoMessageArray), SingerInfo.getDescriptor()));
+    assertThat(rs.getProtoMessageList("protoMessageArray", SingerInfo.getDefaultInstance()))
+        .isEqualTo(Arrays.asList(protoMessageArray));
+    assertThat(rs.getValue("protoMessageArray"))
+        .isEqualTo(
+            Value.protoMessageArray(Arrays.asList(protoMessageArray), SingerInfo.getDescriptor()));
+
+    assertThat(rs.getProtoEnumList(columnIndex, Genre::forNumber))
+        .isEqualTo(Arrays.asList(protoEnumArray));
+    assertThat(rs.getValue(columnIndex))
+        .isEqualTo(Value.protoEnumArray(Arrays.asList(protoEnumArray), Genre.getDescriptor()));
+    assertThat(rs.getProtoEnumList("protoEnumArray", Genre::forNumber))
+        .isEqualTo(Arrays.asList(protoEnumArray));
+    assertThat(rs.getValue("protoEnumArray"))
+        .isEqualTo(Value.protoEnumArray(Arrays.asList(protoEnumArray), Genre.getDescriptor()));
 
     assertThat(rs.next()).isTrue();
     assertThat(rs.getCurrentRowAsStruct()).isEqualTo(struct2);

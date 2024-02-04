@@ -66,6 +66,7 @@ class SpannerImpl extends BaseService<SpannerOptions> implements Spanner {
   static final String COMMIT = "CloudSpannerOperation.Commit";
   static final String QUERY = "CloudSpannerOperation.ExecuteStreamingQuery";
   static final String READ = "CloudSpannerOperation.ExecuteStreamingRead";
+  static final String BATCH_WRITE = "CloudSpannerOperation.BatchWrite";
 
   private static final Object CLIENT_ID_LOCK = new Object();
 
@@ -249,13 +250,13 @@ class SpannerImpl extends BaseService<SpannerOptions> implements Spanner {
     synchronized (this) {
       checkClosed();
       closedException = new ClosedException();
+    }
+    try {
       closureFutures = new ArrayList<>();
       for (DatabaseClientImpl dbClient : dbClients.values()) {
         closureFutures.add(dbClient.closeAsync(closedException));
       }
       dbClients.clear();
-    }
-    try {
       Futures.successfulAsList(closureFutures).get(timeout, unit);
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
       throw SpannerExceptionFactory.newSpannerException(e);

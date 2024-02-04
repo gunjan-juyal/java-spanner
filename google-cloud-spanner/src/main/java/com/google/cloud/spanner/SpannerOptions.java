@@ -17,6 +17,8 @@
 package com.google.cloud.spanner;
 
 import com.google.api.core.ApiFunction;
+import com.google.api.core.BetaApi;
+import com.google.api.core.InternalApi;
 import com.google.api.gax.core.ExecutorProvider;
 import com.google.api.gax.grpc.GrpcCallContext;
 import com.google.api.gax.grpc.GrpcInterceptorProvider;
@@ -31,6 +33,7 @@ import com.google.cloud.ServiceRpc;
 import com.google.cloud.TransportOptions;
 import com.google.cloud.grpc.GcpManagedChannelOptions;
 import com.google.cloud.grpc.GrpcTransportOptions;
+import com.google.cloud.spanner.Options.DirectedReadOption;
 import com.google.cloud.spanner.Options.QueryOption;
 import com.google.cloud.spanner.Options.UpdateOption;
 import com.google.cloud.spanner.admin.database.v1.DatabaseAdminSettings;
@@ -48,6 +51,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.spanner.v1.DirectedReadOptions;
 import com.google.spanner.v1.ExecuteSqlRequest;
 import com.google.spanner.v1.ExecuteSqlRequest.QueryOptions;
 import com.google.spanner.v1.SpannerGrpc;
@@ -134,6 +138,9 @@ public class SpannerOptions extends ServiceOptions<Spanner, SpannerOptions> {
   private final CloseableExecutorProvider asyncExecutorProvider;
   private final String compressorName;
   private final boolean leaderAwareRoutingEnabled;
+  private final boolean attemptDirectPath;
+  private final DirectedReadOptions directedReadOptions;
+  private final boolean useVirtualThreads;
 
   /** Interface that can be used to provide {@link CallCredentials} to {@link SpannerOptions}. */
   public interface CallCredentialsProvider {
@@ -524,7 +531,30 @@ public class SpannerOptions extends ServiceOptions<Spanner, SpannerOptions> {
    */
   @VisibleForTesting
   static CloseableExecutorProvider createDefaultAsyncExecutorProvider() {
-    return createAsyncExecutorProvider(8, 60L, TimeUnit.SECONDS);
+    return createAsyncExecutorProvider(
+        getDefaultAsyncExecutorProviderCoreThreadCount(), 60L, TimeUnit.SECONDS);
+  }
+
+  @VisibleForTesting
+  static int getDefaultAsyncExecutorProviderCoreThreadCount() {
+    String propertyName = "com.google.cloud.spanner.async_num_core_threads";
+    String propertyValue = System.getProperty(propertyName, "8");
+    try {
+      int corePoolSize = Integer.parseInt(propertyValue);
+      if (corePoolSize < 0) {
+        throw SpannerExceptionFactory.newSpannerException(
+            ErrorCode.INVALID_ARGUMENT,
+            String.format(
+                "The value for %s must be >=0. Invalid value: %s", propertyName, propertyValue));
+      }
+      return corePoolSize;
+    } catch (NumberFormatException exception) {
+      throw SpannerExceptionFactory.newSpannerException(
+          ErrorCode.INVALID_ARGUMENT,
+          String.format(
+              "The %s system property must be a valid integer. The value %s could not be parsed as an integer.",
+              propertyName, propertyValue));
+    }
   }
 
   /**
@@ -551,9 +581,9 @@ public class SpannerOptions extends ServiceOptions<Spanner, SpannerOptions> {
     return FixedCloseableExecutorProvider.create(executor);
   }
 
-  private SpannerOptions(Builder builder) {
+  protected SpannerOptions(Builder builder) {
     super(SpannerFactory.class, SpannerRpcFactory.class, builder, new SpannerDefaults());
-    numChannels = builder.numChannels;
+    numChannels = builder.numChannels == null ? DEFAULT_CHANNELS : builder.numChannels;
     Preconditions.checkArgument(
         numChannels >= 1 && numChannels <= MAX_CHANNELS,
         "Number of channels must fall in the range [1, %s], found: %s",
@@ -600,6 +630,9 @@ public class SpannerOptions extends ServiceOptions<Spanner, SpannerOptions> {
     asyncExecutorProvider = builder.asyncExecutorProvider;
     compressorName = builder.compressorName;
     leaderAwareRoutingEnabled = builder.leaderAwareRoutingEnabled;
+    attemptDirectPath = builder.attemptDirectPath;
+    directedReadOptions = builder.directedReadOptions;
+    useVirtualThreads = builder.useVirtualThreads;
   }
 
   /**
@@ -663,10 +696,10 @@ public class SpannerOptions extends ServiceOptions<Spanner, SpannerOptions> {
     private final ImmutableSet<String> allowedClientLibTokens =
         ImmutableSet.of(
             ServiceOptions.getGoogApiClientLibName(),
-            JDBC_API_CLIENT_LIB_TOKEN,
-            HIBERNATE_API_CLIENT_LIB_TOKEN,
-            LIQUIBASE_API_CLIENT_LIB_TOKEN,
-            PG_ADAPTER_CLIENT_LIB_TOKEN);
+            createCustomClientLibToken(JDBC_API_CLIENT_LIB_TOKEN),
+            createCustomClientLibToken(HIBERNATE_API_CLIENT_LIB_TOKEN),
+            createCustomClientLibToken(LIQUIBASE_API_CLIENT_LIB_TOKEN),
+            createCustomClientLibToken(PG_ADAPTER_CLIENT_LIB_TOKEN));
     private TransportChannelProvider channelProvider;
 
     @SuppressWarnings("rawtypes")
@@ -701,8 +734,15 @@ public class SpannerOptions extends ServiceOptions<Spanner, SpannerOptions> {
     private String compressorName;
     private String emulatorHost = System.getenv("SPANNER_EMULATOR_HOST");
     private boolean leaderAwareRoutingEnabled = true;
+    private boolean attemptDirectPath = true;
+    private DirectedReadOptions directedReadOptions;
+    private boolean useVirtualThreads = false;
 
-    private Builder() {
+    private static String createCustomClientLibToken(String token) {
+      return token + " " + ServiceOptions.getGoogApiClientLibName();
+    }
+
+    protected Builder() {
       // Manually set retry and polling settings that work.
       OperationTimedPollAlgorithm longRunningPollingAlgorithm =
           OperationTimedPollAlgorithm.create(
@@ -756,6 +796,9 @@ public class SpannerOptions extends ServiceOptions<Spanner, SpannerOptions> {
       this.channelProvider = options.channelProvider;
       this.channelConfigurator = options.channelConfigurator;
       this.interceptorProvider = options.interceptorProvider;
+      this.attemptDirectPath = options.attemptDirectPath;
+      this.directedReadOptions = options.directedReadOptions;
+      this.useVirtualThreads = options.useVirtualThreads;
     }
 
     @Override
@@ -770,6 +813,13 @@ public class SpannerOptions extends ServiceOptions<Spanner, SpannerOptions> {
     @Override
     protected Set<String> getAllowedClientLibTokens() {
       return allowedClientLibTokens;
+    }
+
+    @InternalApi
+    @Override
+    public SpannerOptions.Builder setClientLibToken(String clientLibToken) {
+      return super.setClientLibToken(
+          clientLibToken + " " + ServiceOptions.getGoogApiClientLibName());
     }
 
     /**
@@ -1114,6 +1164,32 @@ public class SpannerOptions extends ServiceOptions<Spanner, SpannerOptions> {
     }
 
     /**
+     * Sets the {@link DirectedReadOption} that specify which replicas or regions should be used for
+     * non-transactional reads or queries.
+     *
+     * <p>DirectedReadOptions set at the request level will take precedence over the options set
+     * using this method.
+     *
+     * <p>An example below of how {@link DirectedReadOptions} can be constructed by including a
+     * replica.
+     *
+     * <pre><code>
+     * DirectedReadOptions.newBuilder()
+     *           .setIncludeReplicas(
+     *               IncludeReplicas.newBuilder()
+     *                   .addReplicaSelections(
+     *                       ReplicaSelection.newBuilder().setLocation("us-east1").build()))
+     *           .build();
+     *           }
+     * </code></pre>
+     */
+    public Builder setDirectedReadOptions(DirectedReadOptions directedReadOptions) {
+      this.directedReadOptions =
+          Preconditions.checkNotNull(directedReadOptions, "DirectedReadOptions cannot be null");
+      return this;
+    }
+
+    /**
      * Specifying this will allow the client to prefetch up to {@code prefetchChunks} {@code
      * PartialResultSet} chunks for each read and query. The data size of each chunk depends on the
      * server implementation but a good rule of thumb is that each chunk will be up to 1 MiB. Larger
@@ -1182,6 +1258,22 @@ public class SpannerOptions extends ServiceOptions<Spanner, SpannerOptions> {
      */
     public Builder disableLeaderAwareRouting() {
       this.leaderAwareRoutingEnabled = false;
+      return this;
+    }
+
+    @BetaApi
+    public Builder disableDirectPath() {
+      this.attemptDirectPath = false;
+      return this;
+    }
+
+    /**
+     * Enables/disables the use of virtual threads for the gRPC executor. Setting this option only
+     * has any effect on Java 21 and higher. In all other cases, the option will be ignored.
+     */
+    @BetaApi
+    protected Builder setUseVirtualThreads(boolean useVirtualThreads) {
+      this.useVirtualThreads = useVirtualThreads;
       return this;
     }
 
@@ -1323,6 +1415,20 @@ public class SpannerOptions extends ServiceOptions<Spanner, SpannerOptions> {
 
   public boolean isLeaderAwareRoutingEnabled() {
     return leaderAwareRoutingEnabled;
+  }
+
+  public DirectedReadOptions getDirectedReadOptions() {
+    return directedReadOptions;
+  }
+
+  @BetaApi
+  public boolean isAttemptDirectPath() {
+    return attemptDirectPath;
+  }
+
+  @BetaApi
+  public boolean isUseVirtualThreads() {
+    return useVirtualThreads;
   }
 
   /** Returns the default query options to use for the specific database. */

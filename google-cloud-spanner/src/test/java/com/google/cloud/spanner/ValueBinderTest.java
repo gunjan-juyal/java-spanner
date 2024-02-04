@@ -25,6 +25,12 @@ import static com.google.common.truth.Truth.assertWithMessage;
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.SingerProto.Genre;
+import com.google.cloud.spanner.SingerProto.SingerInfo;
+import com.google.protobuf.AbstractMessage;
+import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.Descriptors.EnumDescriptor;
+import com.google.protobuf.ProtocolMessageEnum;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -42,6 +48,8 @@ public class ValueBinderTest {
   private static final String JSON_METHOD_NAME = "json";
   private static final String PG_JSONB_METHOD_NAME = "pgJsonb";
   private static final String PG_NUMERIC_METHOD_NAME = "pgNumeric";
+  private static final String PROTO_MESSAGE_METHOD_NAME = "protoMessage";
+  private static final String PROTO_ENUM_METHOD_NAME = "protoEnum";
   private static final String BYTES_BASE64_METHOD_NAME = "bytesFromBase64";
   private static final String GENERIC_PRIMITIVE_METHOD_NAME = "primitiveToValue";
   private static final String GENERIC_PRIMITIVE_ARRAY_METHOD_NAME = "primitivesToValue";
@@ -126,7 +134,9 @@ public class ValueBinderTest {
         }
       } else if (binderMethod.getParameterTypes().length == 1) {
         // Test unary null.
-        if (!binderMethod.getParameterTypes()[0].isPrimitive()) {
+        if (!binderMethod.getParameterTypes()[0].isPrimitive()
+            && (!method.getName().equalsIgnoreCase(PROTO_MESSAGE_METHOD_NAME)
+                && !method.getName().equalsIgnoreCase(PROTO_ENUM_METHOD_NAME))) {
           if (method.getName().equalsIgnoreCase(JSON_METHOD_NAME)) {
             // Special case for json to change the method from ValueBinder.to(String) to
             // ValueBinder.to(Value)
@@ -148,7 +158,6 @@ public class ValueBinderTest {
           }
           Value expected = (Value) method.invoke(Value.class, (Object) null);
           assertThat(lastValue).isEqualTo(expected);
-
           assertThat(binder.to(expected)).isEqualTo(lastReturnValue);
           assertThat(lastValue).isEqualTo(expected);
         }
@@ -181,6 +190,27 @@ public class ValueBinderTest {
         Value expected = (Value) method.invoke(Value.class, defaultObject);
         assertThat(lastValue).isEqualTo(expected);
 
+        assertThat(binder.to(expected)).isEqualTo(lastReturnValue);
+        assertThat(lastValue).isEqualTo(expected);
+      } else if (binderMethod.getParameterTypes().length == 2
+          && (method.getName().contains(PROTO_MESSAGE_METHOD_NAME)
+              || method.getName().contains(PROTO_ENUM_METHOD_NAME))) {
+        // Test unary null.
+        Object firstArgument = null;
+        if (binderMethod.getParameterTypes()[0].isPrimitive()) {
+          firstArgument = 0;
+        }
+
+        Object secondArgument = "com.proto.example";
+        if (binderMethod.getParameterTypes()[1] == Descriptor.class) {
+          secondArgument = SingerInfo.getDescriptor();
+        } else if (binderMethod.getParameterTypes()[1] == EnumDescriptor.class) {
+          secondArgument = Genre.getDescriptor();
+        }
+        assertThat(binderMethod.invoke(binder, firstArgument, secondArgument))
+            .isEqualTo(lastReturnValue);
+        Value expected = (Value) method.invoke(Value.class, firstArgument, secondArgument);
+        assertThat(lastValue).isEqualTo(expected);
         assertThat(binder.to(expected)).isEqualTo(lastReturnValue);
         assertThat(lastValue).isEqualTo(expected);
       } else if (method.getName().equals(GENERIC_PRIMITIVE_METHOD_NAME) ||
@@ -245,6 +275,14 @@ public class ValueBinderTest {
 
     public static Double defaultDoubleWrapper() {
       return 1.0;
+    }
+
+    public static AbstractMessage defaultAbstractMessage() {
+      return SingerInfo.newBuilder().setSingerId(323).build();
+    }
+
+    public static ProtocolMessageEnum defaultProtocolMessageEnum() {
+      return Genre.FOLK;
     }
 
     public static String defaultString() {
